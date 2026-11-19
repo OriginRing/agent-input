@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useId, watch } from 'vue'
-import { draftLength, normalizeDraft, sameDraft, serializeDraft, sliceDraft } from './draft'
-import type { DraftSelection } from './draft'
-import { readEditor, readSelection, renderEditor, restoreSelection, tagFromTarget } from './editor-dom'
-import type { EditorSnapshot } from './editor-dom'
+import { draftLength, normalizeDraft, sameDraft, serializeDraft, sliceDraft } from './draft.js'
+import type { DraftSelection } from './draft.js'
+import { readEditor, readSelection, renderEditor, restoreSelection, tagFromTarget } from './editor-dom.js'
+import type { EditorSnapshot } from './editor-dom.js'
 import type {
   AgentInputContent,
   AgentInputExpose,
@@ -13,7 +13,7 @@ import type {
   AgentInputSuggestion,
   AgentInputTag,
   AgentInputTrigger,
-} from './types'
+} from './types.js'
 
 const props = withDefaults(defineProps<AgentInputProps>(), {
   theme: 'light',

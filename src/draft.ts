@@ -1,4 +1,4 @@
-import type { AgentInputContent, AgentInputTag } from './types'
+import type { AgentInputContent, AgentInputTag } from './types.js'
 
 export interface DraftSelection {
   start: number

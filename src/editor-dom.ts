@@ -1,5 +1,5 @@
-import type { DraftSelection } from './draft'
-import type { AgentInputContent, AgentInputTag } from './types'
+import type { DraftSelection } from './draft.js'
+import type { AgentInputContent, AgentInputTag } from './types.js'
 
 const guardCharacter = '\uFEFF'
 const tagAttribute = 'data-agent-input-tag'

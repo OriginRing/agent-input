@@ -2,8 +2,9 @@
   "name": "vue-agent-input",
   "version": "0.1.0",
   "description": "A Vue composer with inline tags and customizable suggestion panels.",
+  "license": "MIT",
   "type": "module",
-  "files": ["dist"],
+  "files": ["dist", "LICENSE"],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -17,7 +18,7 @@
   "scripts": {
     "dev": "vite",
     "typecheck": "vue-tsc --noEmit",
-    "build": "vite build --mode library && vue-tsc -p tsconfig.build.json",
+    "build": "vite build --mode library && vue-tsc -p tsconfig.build.json && node scripts/finalize-types.mjs",
     "build:demo": "vite build",
     "test": "playwright test",
     "prepack": "npm run build"

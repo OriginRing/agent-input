@@ -9,4 +9,4 @@ export type {
   AgentInputTag,
   AgentInputTheme,
   AgentInputTrigger,
-} from './types'
+} from './types.js'

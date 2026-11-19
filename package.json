@@ -3,6 +3,13 @@
   "version": "0.1.0",
   "description": "A Vue composer with inline tags and customizable suggestion panels.",
   "license": "MIT",
+  "keywords": [
+    "vue-agent-input",
+    "agent-input",
+    "ai-input",
+    "input",
+    "input-x"
+  ],
   "type": "module",
   "files": ["dist", "LICENSE"],
   "main": "./dist/index.js",
@@ -14,6 +21,18 @@
     },
     "./style.css": "./dist/style.css"
   },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OriginRing/agent-input"
+  },
+  "bugs": {
+    "url": "https://github.com/OriginRing/agent-input/issues"
+  },
+  "homepage": "https://github.com/OriginRing/agent-input",
   "sideEffects": ["**/*.css"],
   "scripts": {
     "dev": "vite",

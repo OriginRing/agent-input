@@ -1,0 +1,176 @@
+.agent-input {
+  --agent-input-surface: #fff;
+  --agent-input-text: #171717;
+  --agent-input-placeholder: #626262;
+  --agent-input-border: #d4d4d4;
+  --agent-input-focus: #595959;
+  --agent-input-tag-background: #efefef;
+  --agent-input-tag-color: #292929;
+  --agent-input-action-background: #171717;
+  --agent-input-action-hover: #3b3b3b;
+  --agent-input-action-color: #fff;
+  --agent-input-shadow: 0 12px 32px #0002;
+  --agent-input-line-height: 1.5rem;
+
+  &[data-theme='dark'] {
+    --agent-input-surface: #1c1c1c;
+    --agent-input-text: #f5f5f5;
+    --agent-input-placeholder: #ababab;
+    --agent-input-border: #4a4a4a;
+    --agent-input-focus: #bdbdbd;
+    --agent-input-tag-background: #363636;
+    --agent-input-tag-color: #f2f2f2;
+    --agent-input-action-background: #f5f5f5;
+    --agent-input-action-hover: #d7d7d7;
+    --agent-input-action-color: #171717;
+    --agent-input-shadow: 0 12px 32px #0006;
+    color-scheme: dark;
+  }
+
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  gap: .375rem;
+  min-inline-size: 0;
+  padding: .75rem;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 1rem;
+  background: var(--agent-input-surface);
+  color: var(--agent-input-text);
+  color-scheme: light;
+
+  &:focus-within { border-color: var(--agent-input-focus); }
+
+  &__header, &__agent-row, &__footer-content { min-inline-size: 0; }
+
+  &__editor {
+    position: relative;
+    min-inline-size: 0;
+    min-block-size: calc(var(--agent-input-line-height) * var(--agent-input-min-rows));
+    max-block-size: calc(var(--agent-input-line-height) * var(--agent-input-max-rows));
+    padding-inline: .25rem;
+    overflow: auto;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    white-space: break-spaces;
+    outline: none;
+    font-size: 1rem;
+    line-height: var(--agent-input-line-height);
+
+    &[data-empty='true']::before {
+      position: absolute;
+      inset: 0 .25rem auto;
+      color: var(--agent-input-placeholder);
+      content: attr(data-placeholder);
+      pointer-events: none;
+    }
+  }
+
+  &__tag, &__agent {
+    display: inline-flex;
+    box-sizing: border-box;
+    align-items: center;
+    gap: .3rem;
+    max-inline-size: 100%;
+    padding-inline: .4rem;
+    border-radius: .375rem;
+    background: var(--agent-input-tag-background);
+    color: var(--agent-input-tag-color);
+    vertical-align: middle;
+
+    img {
+      flex: none;
+      inline-size: 1rem;
+      block-size: 1rem;
+      border-radius: .2rem;
+      object-fit: cover;
+    }
+  }
+
+  &__tag {
+    height: 1.25rem;
+    margin-inline: .125rem;
+    max-inline-size: calc(100% - .25rem);
+    font-size: .875rem;
+    white-space: nowrap;
+  }
+
+  &__agent { font-size: .875rem; }
+
+  &__tag-label, &__agent-label {
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: .5rem;
+  }
+
+  &__remove, &__action {
+    display: grid;
+    flex: none;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    cursor: pointer;
+
+    svg {
+      inline-size: 1.125rem;
+      block-size: 1.125rem;
+    }
+
+    path {
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--agent-input-focus);
+      outline-offset: 2px;
+    }
+  }
+
+  &__remove {
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    border-radius: .25rem;
+    background: transparent;
+    color: inherit;
+
+    &:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
+  }
+
+  &__action {
+    inline-size: 2.75rem;
+    block-size: 2.75rem;
+    margin-inline-start: auto;
+    border-radius: .75rem;
+    background: var(--agent-input-action-background);
+    color: var(--agent-input-action-color);
+
+    &:hover { background: var(--agent-input-action-hover); }
+  }
+
+  &__suggestion {
+    position: absolute;
+    z-index: 10;
+    inset: auto 0 calc(100% + .5rem);
+    box-sizing: border-box;
+    max-block-size: min(16rem, 50dvh, var(--agent-input-suggestion-available, 100dvh));
+    overflow: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--agent-input-border);
+    border-radius: .875rem;
+    background: var(--agent-input-surface);
+    box-shadow: var(--agent-input-shadow);
+
+    &[data-side='below'] { inset: calc(100% + .5rem) 0 auto; }
+  }
+}

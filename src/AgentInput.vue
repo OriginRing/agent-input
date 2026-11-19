@@ -46,7 +46,6 @@ interface ActiveSuggestion extends DraftSelection {
 const root = ref<HTMLElement | null>(null)
 const scrollArea = ref<HTMLElement | null>(null)
 const editor = ref<HTMLElement | null>(null)
-const suggestionPanel = ref<HTMLElement | null>(null)
 const panelId = `agent-input-suggestion-${useId()}`
 const draft = shallowRef(normalizeDraft(props.modelValue ?? []))
 const localAgent = shallowRef<AgentInputItem | null>(null)
@@ -362,45 +361,6 @@ function handleEscape(event: KeyboardEvent) {
   focus()
 }
 
-watch(suggestionPanel, (panel, _, onCleanup) => {
-  const container = root.value
-  const view = panel?.ownerDocument.defaultView
-  if (!panel || !container || !view) return
-  const viewport = view.visualViewport
-
-  const positionPanel = () => {
-    const bounds = container.getBoundingClientRect()
-    const viewportTop = viewport?.offsetTop ?? 0
-    const viewportHeight = viewport?.height ?? view.innerHeight
-    const rem = Number.parseFloat(view.getComputedStyle(container.ownerDocument.documentElement).fontSize)
-    const gap = rem / 2
-    const above = Math.max(0, bounds.top - viewportTop - gap)
-    const below = Math.max(0, viewportTop + viewportHeight - bounds.bottom - gap)
-    const panelHeight = panel.scrollHeight + panel.offsetHeight - panel.clientHeight
-    const desiredHeight = Math.min(panelHeight, 16 * rem, viewportHeight / 2)
-    const opensAbove = above >= desiredHeight || above >= below
-    panel.dataset.side = opensAbove ? 'above' : 'below'
-    panel.style.setProperty('--agent-input-suggestion-available', `${Math.floor(opensAbove ? above : below)}px`)
-  }
-
-  const observer = new ResizeObserver(positionPanel)
-  observer.observe(container)
-  observer.observe(panel)
-  view.addEventListener('resize', positionPanel)
-  view.addEventListener('scroll', positionPanel, { capture: true, passive: true })
-  viewport?.addEventListener('resize', positionPanel)
-  viewport?.addEventListener('scroll', positionPanel)
-  positionPanel()
-
-  onCleanup(() => {
-    observer.disconnect()
-    view.removeEventListener('resize', positionPanel)
-    view.removeEventListener('scroll', positionPanel, true)
-    viewport?.removeEventListener('resize', positionPanel)
-    viewport?.removeEventListener('scroll', positionPanel)
-  })
-}, { flush: 'post' })
-
 onMounted(() => {
   doc = editor.value?.ownerDocument
   renderDraft(draft.value, null)
@@ -429,6 +389,17 @@ defineExpose<AgentInputExpose>({ focus, setAgent, insertTag })
     @focusout="handleFocusOut"
     @keydown.esc="handleEscape"
   >
+    <div v-if="suggestion && $slots.suggestion" :id="panelId" class="agent-input__suggestion">
+      <slot
+        name="suggestion"
+        :trigger="suggestion.trigger"
+        :query="suggestion.query"
+        :set-agent="setSuggestedAgent"
+        :insert-tag="insertSuggestedTag"
+        :close="closeSuggestion"
+      />
+    </div>
+
     <div v-if="$slots.header" class="agent-input__header"><slot name="header" /></div>
 
     <div ref="scrollArea" class="agent-input__body">
@@ -462,17 +433,6 @@ defineExpose<AgentInputExpose>({ focus, setAgent, insertTag })
         @cut="handleCut"
         @drop.prevent
       ></div>
-    </div>
-
-    <div v-if="suggestion && $slots.suggestion" :id="panelId" ref="suggestionPanel" class="agent-input__suggestion">
-      <slot
-        name="suggestion"
-        :trigger="suggestion.trigger"
-        :query="suggestion.query"
-        :set-agent="setSuggestedAgent"
-        :insert-tag="insertSuggestedTag"
-        :close="closeSuggestion"
-      />
     </div>
 
     <div class="agent-input__footer">

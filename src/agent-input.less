@@ -9,7 +9,6 @@
   --agent-input-action-background: #171717;
   --agent-input-action-hover: #3b3b3b;
   --agent-input-action-color: #fff;
-  --agent-input-shadow: 0 12px 32px #0002;
   --agent-input-line-height: 1.5rem;
 
   &[data-theme='dark'] {
@@ -23,7 +22,6 @@
     --agent-input-action-background: #f5f5f5;
     --agent-input-action-hover: #d7d7d7;
     --agent-input-action-color: #171717;
-    --agent-input-shadow: 0 12px 32px #0006;
     color-scheme: dark;
   }
 
@@ -41,7 +39,7 @@
 
   &:focus-within { border-color: var(--agent-input-focus); }
 
-  &__header, &__footer-content { min-inline-size: 0; }
+  &__header { min-inline-size: 0; }
 
   &__body {
     min-inline-size: 0;
@@ -119,9 +117,14 @@
 
   &__footer {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     gap: .5rem;
+  }
+
+  &__footer-content {
+    flex: 1 1 0;
+    min-inline-size: 0;
   }
 
   &__remove, &__action {
@@ -163,7 +166,6 @@
   &__action {
     inline-size: 2.75rem;
     block-size: 2.75rem;
-    margin-inline-start: auto;
     border-radius: .75rem;
     background: var(--agent-input-action-background);
     color: var(--agent-input-action-color);
@@ -172,18 +174,11 @@
   }
 
   &__suggestion {
-    position: absolute;
-    z-index: 10;
-    inset: auto 0 calc(100% + .5rem);
     box-sizing: border-box;
-    max-block-size: min(16rem, 50dvh, var(--agent-input-suggestion-available, 100dvh));
+    min-inline-size: 0;
+    max-block-size: min(16rem, 50dvh);
     overflow: auto;
     overscroll-behavior: contain;
-    border: 1px solid var(--agent-input-border);
-    border-radius: .875rem;
-    background: var(--agent-input-surface);
-    box-shadow: var(--agent-input-shadow);
-
-    &[data-side='below'] { inset: calc(100% + .5rem) 0 auto; }
+    border-block-end: 1px solid var(--agent-input-border);
   }
 }

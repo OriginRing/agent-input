@@ -29,6 +29,28 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/')
 })
 
+test('gives the footer slot the remaining width with a fixed-size action and a gap', async ({ page }) => {
+  const footer = page.locator('.agent-input__footer')
+  const slot = footer.locator('.agent-input__footer-content')
+
+  async function expectFooterLayout(action: Locator) {
+    const bounds = (await footer.boundingBox())!
+    const content = (await slot.boundingBox())!
+    const control = (await action.boundingBox())!
+    expect(control.width).toBe(44)
+    expect(control.height).toBe(44)
+    expect(content.x).toBeCloseTo(bounds.x)
+    expect(control.x + control.width).toBeCloseTo(bounds.x + bounds.width)
+    expect(control.x - (content.x + content.width)).toBeCloseTo(8)
+  }
+
+  await expectFooterLayout(button(page, '发送消息'))
+  await page.setViewportSize({ width: 320, height: 667 })
+  await expectFooterLayout(button(page, '发送消息'))
+  await button(page, '发送消息').click()
+  await expectFooterLayout(button(page, '停止生成'))
+})
+
 test('places the agent beside the first line and gives subsequent lines the full editor width', async ({ page }) => {
   const editor = textbox(page)
   const agent = page.locator('.agent-input__agent')
@@ -225,24 +247,39 @@ test('keeps personalized tag colors after refill and works in a narrow dark layo
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375)
   await button(page, '清空正文').click()
   await textbox(page).pressSequentially('/')
-  const bounds = await panel(page).boundingBox()
-  const root = await page.locator('.agent-input').boundingBox()
-  expect(bounds!.y + bounds!.height).toBeLessThan(root!.y)
-  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(375)
+  const bounds = (await panel(page).boundingBox())!
+  const root = (await page.locator('.agent-input').boundingBox())!
+  expect(bounds.x).toBeGreaterThan(root.x)
+  expect(bounds.x + bounds.width).toBeLessThan(root.x + root.width)
 })
 
-test('keeps suggestions visible when the composer sits at the top of the viewport', async ({ page }) => {
+test('expands suggestions in the composer flow above the header', async ({ page }) => {
   const root = page.locator('.agent-input')
+  const header = root.locator('.agent-input__header')
   await root.evaluate(element => {
     const style = (element as HTMLElement).style
     style.position = 'fixed'
     style.inset = '0 1rem auto'
   })
-  await textbox(page).pressSequentially('/')
-  await expect(panel(page)).toHaveAttribute('data-side', 'below')
-  expect((await panel(page).boundingBox())!.y).toBeGreaterThan((await root.boundingBox())!.height)
+  const closed = (await root.boundingBox())!
+  const headerBefore = (await header.boundingBox())!
+  const editor = textbox(page)
+  await editor.pressSequentially('/')
+
+  await expect(panel(page)).toHaveCSS('position', 'static')
+  const open = (await root.boundingBox())!
+  const suggestions = (await panel(page).boundingBox())!
+  const headerAfter = (await header.boundingBox())!
+  expect(suggestions.y).toBeGreaterThan(open.y)
+  expect(suggestions.y + suggestions.height).toBeLessThan(headerAfter.y)
+  expect(headerAfter.y - headerBefore.y).toBeGreaterThanOrEqual(suggestions.height)
+  expect(open.height - closed.height).toBeCloseTo(headerAfter.y - headerBefore.y)
+
   await button(page, '季度报告').click()
   await expect(tags(page)).toHaveCount(1)
+  await expect(panel(page)).toHaveCount(0)
+  await expect(editor).toBeFocused()
+  expect((await root.boundingBox())!.height).toBeCloseTo(closed.height)
 })
 
 test('preserves plain-text pastes and scrolls within the row limit', async ({ page }) => {

@@ -69,8 +69,8 @@ function send(payload: AgentInputSendPayload) {
 
 ## 插槽与方法
 
-- `#header` 在正文区域上方渲染，`#footer` 在发送按钮左侧渲染。头部智能体放在正文第一行开头，后续行使用完整正文宽度。
-- `#suggestion` 接收 `{ trigger, query, setAgent, insertTag, close }`。面板优先向上展开，上方空间不足且下方更宽裕时向下展开。调用方决定候选数据、筛选和列表内容。两个选择方法都会替换当前触发符及查询词，操作完成后恢复正文焦点。`close()` 保留已输入的文字。
+- `#header` 在正文区域上方渲染。`#footer` 填满发送按钮左侧的剩余宽度，两者之间留有 `0.5rem` 间距。头部智能体放在正文第一行开头，后续行使用完整正文宽度。
+- `#suggestion` 接收 `{ trigger, query, setAgent, insertTag, close }`。面板在组件内部的 `#header` 上方展开，候选超出面板高度时可滚动。调用方决定候选数据、筛选和列表内容。两个选择方法都会替换当前触发符及查询词，操作完成后恢复正文焦点。`close()` 保留已输入的文字。
 - `suggestion-keydown` 在面板打开时提供正文的 `KeyboardEvent`。调用方接管方向键或 Enter 时调用 `event.preventDefault()`。未处理的 Enter 关闭面板。Escape 关闭面板，Shift+Enter 换行。
 - 通过 `ref<AgentInputExpose>()` 可调用 `focus()`、`setAgent(itemOrNull)` 和 `insertTag(tag)`。ref 上的 `setAgent` 直接设置头部智能体。ref 上的 `insertTag` 替换当前或最近一次正文选区，尚无选区时在末尾追加。
 

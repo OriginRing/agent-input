@@ -2,6 +2,10 @@
 
 面向智能体和聊天产品的 Vue 3 输入框。支持 `@` 智能体选择、`/` 正文标签、自定义候选面板，以及发送和停止事件。正文可以混排文本与可点击标签，使用 `v-model` 保存和回填草稿。
 
+![demo](https://github.com/OriginRing/agent-input/blob/master/demo/assets/input.png)
+
+![demo](https://github.com/OriginRing/agent-input/blob/master/demo/assets/input2.png)
+
 ## 安装
 
 需要 Vue 3.5 或更新的 Vue 3 版本。包以 ESM 发布，附带 TypeScript 声明和编译好的 CSS。

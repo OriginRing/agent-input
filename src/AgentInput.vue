@@ -44,6 +44,7 @@ interface ActiveSuggestion extends DraftSelection {
 }
 
 const root = ref<HTMLElement | null>(null)
+const scrollArea = ref<HTMLElement | null>(null)
 const editor = ref<HTMLElement | null>(null)
 const suggestionPanel = ref<HTMLElement | null>(null)
 const panelId = `agent-input-suggestion-${useId()}`
@@ -77,10 +78,11 @@ function selectionOrEnd() {
 
 function focus() {
   const element = editor.value
-  if (!element || !snapshot || doc?.activeElement === element) return
+  const scroller = scrollArea.value
+  if (!element || !scroller || !snapshot || doc?.activeElement === element) return
   const selection = selectionOrEnd()
   element.focus({ preventScroll: true })
-  restoreSelection(element, snapshot, selection)
+  restoreSelection(scroller, snapshot, selection)
 }
 
 function closeSuggestion() {
@@ -132,7 +134,7 @@ function renderDraft(content: AgentInputContent, selection: DraftSelection | nul
   }
   lastSelection = position
   if (shouldFocus) element.focus({ preventScroll: true })
-  if (doc?.activeElement === element) restoreSelection(element, snapshot, position)
+  if (scrollArea.value && doc?.activeElement === element) restoreSelection(scrollArea.value, snapshot, position)
 }
 
 function commitDraft(content: AgentInputContent) {
@@ -161,11 +163,15 @@ function replaceSelection(
 }
 
 function syncNativeInput(insertedText = '') {
-  if (!editor.value) return
-  snapshot = readEditor(editor.value)
+  const element = editor.value
+  if (!element) return
+  snapshot = readEditor(element)
   const selection = currentSelection()
   if (selection) lastSelection = selection
   const changed = commitDraft(snapshot.content)
+  if (!snapshot.length && snapshot.pointAt(0).node === element) {
+    renderDraft([], { start: 0, end: 0 })
+  }
   updateSuggestion(selection, insertedText)
   if (changed) emit('update:modelValue', normalizeDraft(draft.value))
 }
@@ -425,36 +431,38 @@ defineExpose<AgentInputExpose>({ focus, setAgent, insertTag })
   >
     <div v-if="$slots.header" class="agent-input__header"><slot name="header" /></div>
 
-    <div v-if="agent" class="agent-input__agent-row">
-      <div class="agent-input__agent">
+    <div ref="scrollArea" class="agent-input__body">
+      <div v-if="agent" class="agent-input__agent">
         <img v-if="agent.img" :src="agent.img" alt="" draggable="false">
         <span class="agent-input__agent-label">@{{ agent.label }}</span>
         <button type="button" class="agent-input__remove" :aria-label="`移除智能体 ${agent.label}`" @click="removeAgent">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17" /></svg>
         </button>
       </div>
-    </div>
 
-    <div
-      ref="editor"
-      class="agent-input__editor"
-      contenteditable="true"
-      role="textbox"
-      aria-multiline="true"
-      :aria-label="ariaLabel"
-      :aria-placeholder="placeholder"
-      :aria-controls="suggestion ? panelId : undefined"
-      :data-placeholder="placeholder"
-      :data-empty="draft.length === 0 && !isComposing"
-      @keydown="handleEditorKeydown"
-      @beforeinput="handleBeforeInput"
-      @input="handleInput"
-      @compositionstart="handleCompositionStart"
-      @compositionend="handleCompositionEnd"
-      @paste="handlePaste"
-      @cut="handleCut"
-      @drop.prevent
-    ></div>
+      <div v-if="placeholder && !draft.length && !isComposing" class="agent-input__placeholder" aria-hidden="true">
+        {{ placeholder }}
+      </div>
+
+      <div
+        ref="editor"
+        class="agent-input__editor"
+        contenteditable="true"
+        role="textbox"
+        aria-multiline="true"
+        :aria-label="ariaLabel"
+        :aria-placeholder="placeholder"
+        :aria-controls="suggestion ? panelId : undefined"
+        @keydown="handleEditorKeydown"
+        @beforeinput="handleBeforeInput"
+        @input="handleInput"
+        @compositionstart="handleCompositionStart"
+        @compositionend="handleCompositionEnd"
+        @paste="handlePaste"
+        @cut="handleCut"
+        @drop.prevent
+      ></div>
+    </div>
 
     <div v-if="suggestion && $slots.suggestion" :id="panelId" ref="suggestionPanel" class="agent-input__suggestion">
       <slot

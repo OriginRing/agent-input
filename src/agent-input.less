@@ -41,29 +41,36 @@
 
   &:focus-within { border-color: var(--agent-input-focus); }
 
-  &__header, &__agent-row, &__footer-content { min-inline-size: 0; }
+  &__header, &__footer-content { min-inline-size: 0; }
 
-  &__editor {
-    position: relative;
+  &__body {
     min-inline-size: 0;
-    min-block-size: calc(var(--agent-input-line-height) * var(--agent-input-min-rows));
     max-block-size: calc(var(--agent-input-line-height) * var(--agent-input-max-rows));
     padding-inline: .25rem;
     overflow: auto;
+  }
+
+  &__editor {
+    min-block-size: calc(var(--agent-input-line-height) * var(--agent-input-min-rows));
     overflow-wrap: anywhere;
     white-space: pre-wrap;
     white-space: break-spaces;
     outline: none;
     font-size: 1rem;
     line-height: var(--agent-input-line-height);
+  }
 
-    &[data-empty='true']::before {
-      position: absolute;
-      inset: 0 .25rem auto;
-      color: var(--agent-input-placeholder);
-      content: attr(data-placeholder);
-      pointer-events: none;
-    }
+  &__placeholder {
+    // Overlay the first editable line after laying out beside the floated agent.
+    block-size: var(--agent-input-line-height);
+    margin-block-end: calc(-1 * var(--agent-input-line-height));
+    overflow: hidden;
+    color: var(--agent-input-placeholder);
+    font-size: 1rem;
+    line-height: var(--agent-input-line-height);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
   }
 
   &__tag, &__agent {
@@ -95,7 +102,13 @@
     white-space: nowrap;
   }
 
-  &__agent { font-size: .875rem; }
+  &__agent {
+    float: inline-start;
+    max-inline-size: 55%;
+    block-size: var(--agent-input-line-height);
+    margin-inline-end: .375rem;
+    font-size: .875rem;
+  }
 
   &__tag-label, &__agent-label {
     min-inline-size: 0;
@@ -139,7 +152,7 @@
 
   &__remove {
     inline-size: 1.75rem;
-    block-size: 1.75rem;
+    block-size: 1.5rem;
     border-radius: .25rem;
     background: transparent;
     color: inherit;

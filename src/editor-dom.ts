@@ -62,7 +62,7 @@ export function renderEditor(editor: HTMLElement, content: AgentInputContent): E
   }
 
   const last = content[content.length - 1]
-  if (last !== undefined && (typeof last !== 'string' || last.endsWith('\n'))) appendGuard()
+  if (typeof last !== 'string' || last.endsWith('\n')) appendGuard()
   editor.replaceChildren(fragment)
   return readEditor(editor)
 }
@@ -156,8 +156,8 @@ export function readSelection(editor: HTMLElement, snapshot: EditorSnapshot): Dr
   return start === undefined || end === undefined ? null : { start, end }
 }
 
-export function restoreSelection(editor: HTMLElement, snapshot: EditorSnapshot, selection: DraftSelection) {
-  const doc = editor.ownerDocument
+export function restoreSelection(scrollArea: HTMLElement, snapshot: EditorSnapshot, selection: DraftSelection) {
+  const doc = scrollArea.ownerDocument
   const start = snapshot.pointAt(selection.start)
   const end = snapshot.pointAt(selection.end)
   const range = doc.createRange()
@@ -167,7 +167,7 @@ export function restoreSelection(editor: HTMLElement, snapshot: EditorSnapshot, 
   doc.getSelection()?.addRange(range)
 
   const caret = range.getBoundingClientRect()
-  const bounds = editor.getBoundingClientRect()
-  if (caret.height && caret.bottom > bounds.bottom) editor.scrollTop += caret.bottom - bounds.bottom
-  if (caret.height && caret.top < bounds.top) editor.scrollTop -= bounds.top - caret.top
+  const bounds = scrollArea.getBoundingClientRect()
+  if (caret.height && caret.bottom > bounds.bottom) scrollArea.scrollTop += caret.bottom - bounds.bottom
+  if (caret.height && caret.top < bounds.top) scrollArea.scrollTop -= bounds.top - caret.top
 }

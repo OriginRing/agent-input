@@ -13,17 +13,6 @@ async function expectPayload(page: Page, payload: Record<string, unknown>) {
   await expect.poll(async () => JSON.parse(await result.innerText())).toMatchObject(payload)
 }
 
-async function selectText(editor: Locator, start: number, end = start) {
-  await editor.evaluate((element, position) => {
-    const range = document.createRange()
-    const text = element.firstChild!
-    range.setStart(text, position.start)
-    range.setEnd(text, position.end)
-    document.getSelection()!.removeAllRanges()
-    document.getSelection()!.addRange(range)
-  }, { start, end })
-}
-
 async function placeBesideTag(tag: Locator, edge: 'before' | 'after') {
   await tag.evaluate((element, side) => {
     const range = document.createRange()
@@ -38,6 +27,84 @@ async function placeBesideTag(tag: Locator, edge: 'before' | 'after') {
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
+})
+
+test('places the agent beside the first line and gives subsequent lines the full editor width', async ({ page }) => {
+  const editor = textbox(page)
+  const agent = page.locator('.agent-input__agent')
+  await editor.focus()
+  await page.keyboard.insertText('测试文本')
+  await editor.press('Shift+Enter')
+  await page.keyboard.insertText('第二行正文')
+
+  const glyph = (character: string) => editor.evaluate((element, value) => {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const offset = node.textContent!.indexOf(value)
+      if (offset === -1) continue
+      const range = document.createRange()
+      range.setStart(node, offset)
+      range.setEnd(node, offset + value.length)
+      const { x, y, height } = range.getBoundingClientRect()
+      return { x, y, height }
+    }
+    throw new Error(`Missing character ${value}`)
+  }, character)
+
+  const chip = (await agent.boundingBox())!
+  const first = await glyph('测')
+  const second = await glyph('第')
+  expect(first.x).toBeGreaterThan(chip.x + chip.width)
+  expect(first.y + first.height / 2).toBeLessThan(chip.y + chip.height)
+  expect(Math.abs(second.x - chip.x)).toBeLessThan(1)
+  expect(second.y).toBeGreaterThan(first.y)
+
+  await button(page, '移除智能体 通用助手').click()
+  expect(Math.abs((await glyph('测')).x - chip.x)).toBeLessThan(1)
+  await expect(editor).toBeFocused()
+  await editor.press('Enter')
+  await expectPayload(page, { text: '测试文本\n第二行正文', agent: null })
+})
+
+test('keeps the empty caret between the agent and placeholder before and after clearing', async ({ page }) => {
+  const editor = textbox(page)
+  const agent = page.locator('.agent-input__agent')
+  const placeholder = page.locator('.agent-input__placeholder')
+
+  async function expectEmptyCaret() {
+    await expect(editor).toBeFocused()
+    await expect(placeholder).toBeVisible()
+    const hint = (await placeholder.boundingBox())!
+    const chip = await agent.count() ? await agent.boundingBox() : null
+    await expect.poll(async () => editor.evaluate((element, position) => {
+      const selection = element.ownerDocument.getSelection()
+      if (!selection?.rangeCount || !selection.isCollapsed || !element.contains(selection.anchorNode)) return false
+      const caret = selection.getRangeAt(0).getBoundingClientRect()
+      return caret.height > 0 && caret.x >= position.chipEnd &&
+        Math.abs(caret.x - position.hintStart) < 1 && Math.abs(caret.y - position.hintTop) < caret.height
+    }, { chipEnd: chip ? chip.x + chip.width : hint.x, hintStart: hint.x, hintTop: hint.y })).toBe(true)
+  }
+
+  await editor.click({ position: { x: 240, y: 12 } })
+  await expectEmptyCaret()
+  await button(page, '插入报告标签').click()
+  await button(page, '插入报告标签').click()
+  await expect(tags(page)).toHaveCount(2)
+  await button(page, '清空正文').click()
+  await expect(tags(page)).toHaveCount(0)
+  await expectEmptyCaret()
+
+  await page.keyboard.insertText('文')
+  await editor.press('Backspace')
+  await expectEmptyCaret()
+  await page.keyboard.insertText('重新输入')
+  await editor.press('Enter')
+  await expectPayload(page, { text: '重新输入', content: ['重新输入'], agent: { value: 'general' } })
+  await expectEmptyCaret()
+
+  await button(page, '移除智能体 通用助手').click()
+  await expect(agent).toHaveCount(0)
+  await expectEmptyCaret()
 })
 
 test('sends empty and whitespace-only drafts and stops independently', async ({ page }) => {
@@ -67,7 +134,8 @@ test('uses caller suggestions for agents and tags and restores the caret after m
   await expect(panel(page)).toHaveCount(0)
 
   await editor.pressSequentially('abcd')
-  await selectText(editor, 2)
+  await editor.press('ArrowLeft')
+  await editor.press('ArrowLeft')
   await editor.pressSequentially('/rep')
   await expect(button(page, '参考链接')).toHaveCount(0)
   await button(page, '季度报告').click()
@@ -106,7 +174,10 @@ test('dismisses the panel without discarding typed text or sending', async ({ pa
 test('inserts at a saved selection and serializes adjacent tags and line breaks', async ({ page }) => {
   const editor = textbox(page)
   await editor.pressSequentially('abXYcd')
-  await selectText(editor, 2, 4)
+  await editor.press('ArrowLeft')
+  await editor.press('ArrowLeft')
+  await editor.press('Shift+ArrowLeft')
+  await editor.press('Shift+ArrowLeft')
   await button(page, '插入报告标签').click()
   await button(page, '插入报告标签').click()
   await expect(tags(page)).toHaveCount(2)
@@ -176,7 +247,8 @@ test('keeps suggestions visible when the composer sits at the top of the viewpor
 
 test('preserves plain-text pastes and scrolls within the row limit', async ({ page }) => {
   const editor = textbox(page)
-  await expect(editor).toHaveCSS('height', '48px')
+  const body = page.locator('.agent-input__body')
+  await expect(body).toHaveCSS('height', '48px')
   await editor.focus()
   await editor.evaluate(element => {
     const clipboard = new DataTransfer()
@@ -189,8 +261,9 @@ test('preserves plain-text pastes and scrolls within the row limit', async ({ pa
     await editor.press('Shift+Enter')
     await editor.pressSequentially('a')
   }
-  await expect(editor).toHaveCSS('height', '120px')
-  expect(await editor.evaluate(element => element.scrollHeight)).toBeGreaterThan(120)
+  await expect(body).toHaveCSS('height', '120px')
+  expect(await body.evaluate(element => element.scrollHeight)).toBeGreaterThan(120)
+  expect(await body.evaluate(element => element.scrollTop)).toBeGreaterThan(0)
   await editor.press('Enter')
   await expectPayload(page, { text: 'a  b\nc' + '\na'.repeat(6) })
 })

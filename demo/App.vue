@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, shallowRef } from 'vue'
+import { nextTick, ref, shallowRef } from 'vue'
 import { AgentInput } from '../src'
 import type { AgentInputContent, AgentInputExpose, AgentInputItem, AgentInputSendPayload, AgentInputTag, AgentInputTheme } from '../src'
 import SuggestionMenu from './SuggestionMenu.vue'
@@ -33,6 +33,12 @@ function filterItems(items: AgentInputTag[], query: string) {
 
 function fillExample() {
   content.value = ['请读一下', tags[0], '，再打开', tags[1], '。']
+}
+
+async function clearDraft() {
+  content.value = []
+  await nextTick()
+  composer.value?.focus()
 }
 
 function handleSend(payload: AgentInputSendPayload) {
@@ -78,7 +84,7 @@ function handleStop() {
           <template #header>
             <div class="demo__tools">
               <button type="button" class="demo__button" @click="fillExample">填入示例</button>
-              <button type="button" class="demo__button" @click="content = []">清空正文</button>
+              <button type="button" class="demo__button" @click="clearDraft">清空正文</button>
             </div>
           </template>
           <template #suggestion="{ trigger, query, setAgent, insertTag }">

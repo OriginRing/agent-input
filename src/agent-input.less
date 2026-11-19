@@ -5,7 +5,8 @@
   --agent-input-border: #d4d4d4;
   --agent-input-focus: #595959;
   --agent-input-tag-background: #efefef;
-  --agent-input-tag-color: #292929;
+  --agent-input-tag-color: #06f;
+  --agent-input-agent-color: #292929;
   --agent-input-action-background: #171717;
   --agent-input-action-hover: #3b3b3b;
   --agent-input-action-color: #fff;
@@ -18,7 +19,7 @@
     --agent-input-border: #4a4a4a;
     --agent-input-focus: #bdbdbd;
     --agent-input-tag-background: #363636;
-    --agent-input-tag-color: #f2f2f2;
+    --agent-input-agent-color: #f2f2f2;
     --agent-input-action-background: #f5f5f5;
     --agent-input-action-hover: #d7d7d7;
     --agent-input-action-color: #171717;
@@ -79,8 +80,6 @@
     max-inline-size: 100%;
     padding-inline: .4rem;
     border-radius: .375rem;
-    background: var(--agent-input-tag-background);
-    color: var(--agent-input-tag-color);
     vertical-align: middle;
 
     img {
@@ -96,8 +95,21 @@
     height: 1.25rem;
     margin-inline: .125rem;
     max-inline-size: calc(100% - .25rem);
+    padding-block: 0;
+    border: 0;
+    background: transparent;
+    color: var(--agent-input-tag-color);
+    font: inherit;
     font-size: .875rem;
     white-space: nowrap;
+    cursor: pointer;
+
+    &:hover, &:focus-visible { background: var(--agent-input-tag-background); }
+
+    &:focus-visible {
+      outline: 2px solid var(--agent-input-focus);
+      outline-offset: -2px;
+    }
   }
 
   &__agent {
@@ -105,6 +117,8 @@
     max-inline-size: 55%;
     block-size: var(--agent-input-line-height);
     margin-inline-end: .375rem;
+    background: var(--agent-input-tag-background);
+    color: var(--agent-input-agent-color);
     font-size: .875rem;
   }
 
@@ -146,21 +160,19 @@
       stroke-linecap: round;
       stroke-linejoin: round;
     }
-
-    &:focus-visible {
-      outline: 2px solid var(--agent-input-focus);
-      outline-offset: 2px;
-    }
   }
 
   &__remove {
     inline-size: 1.75rem;
     block-size: 1.5rem;
-    border-radius: .25rem;
+    appearance: none;
     background: transparent;
+    box-shadow: none;
+    outline: none;
     color: inherit;
+    -webkit-tap-highlight-color: transparent;
 
-    &:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
+    &:focus-visible path { stroke-width: 2.6; }
   }
 
   &__action {
@@ -171,6 +183,11 @@
     color: var(--agent-input-action-color);
 
     &:hover { background: var(--agent-input-action-hover); }
+
+    &:focus-visible {
+      outline: 2px solid var(--agent-input-focus);
+      outline-offset: 2px;
+    }
   }
 
   &__suggestion {

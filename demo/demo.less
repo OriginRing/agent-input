@@ -57,6 +57,47 @@ button { font: inherit; }
 
   &__tools { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 
+  &__connectors {
+    display: flex;
+    gap: .375rem;
+    margin: .375rem 0 0;
+    padding: .125rem;
+    overflow-x: auto;
+    list-style: none;
+
+    li {
+      display: inline-flex;
+      flex: none;
+      align-items: center;
+      gap: .25rem;
+      padding-inline: .5rem .125rem;
+      border: 1px solid var(--demo-border);
+      border-radius: .5rem;
+      background: var(--demo-panel);
+      font-size: .8125rem;
+      white-space: nowrap;
+    }
+
+    button {
+      display: grid;
+      place-items: center;
+      inline-size: 1.5rem;
+      block-size: 1.5rem;
+      padding: 0;
+      border: 0;
+      appearance: none;
+      background: transparent;
+      box-shadow: none;
+      outline: none;
+      color: var(--demo-muted);
+      cursor: pointer;
+      font-size: 1rem;
+      -webkit-tap-highlight-color: transparent;
+
+      &:focus-visible { font-weight: 700; }
+    }
+  }
+
   &__button {
     min-block-size: 2.25rem;
     padding: .4rem .65rem;
@@ -71,6 +112,8 @@ button { font: inherit; }
   }
 
   &__shortcut { color: var(--demo-muted); font-size: .8125rem; white-space: nowrap; }
+
+  &__tag-result { margin-block-start: .75rem; }
 
   &__result {
     padding: 1rem;
@@ -98,9 +141,29 @@ button { font: inherit; }
   padding-bottom: .5rem;
 
   p { margin: .25rem .5rem .375rem; color: var(--demo-muted); font-size: .8125rem; }
-  ul { display: grid; gap: .125rem; margin: 0; padding: 0; list-style: none; }
 
-  button {
+  &__group + &__group {
+    margin-block-start: .625rem;
+  }
+
+  &__options { display: grid; gap: .125rem; margin: 0; padding: 0; list-style: none; }
+
+  &__label {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+
+    svg {
+      inline-size: 1rem;
+      block-size: 1rem;
+      stroke: currentColor;
+      stroke-width: 1.6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+  }
+
+  &__options button {
     display: flex;
     justify-content: space-between;
     gap: .5rem;
@@ -115,7 +178,8 @@ button { font: inherit; }
     text-align: start;
     cursor: pointer;
 
-    &:hover, &[data-active='true'] { background: var(--demo-hover); }
+    &:enabled:hover, &[data-active='true'] { background: var(--demo-hover); }
+    &:disabled { color: var(--demo-muted); cursor: default; }
     small { color: var(--demo-muted); overflow-wrap: anywhere; }
   }
 }

@@ -40,5 +40,5 @@ export interface AgentInputSuggestion {
   query: string
   setAgent(item: AgentInputItem): void
   insertTag(item: AgentInputTag): void
-  close(): void
+  close(options?: { clearTrigger?: boolean }): void
 }

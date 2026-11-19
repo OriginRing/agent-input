@@ -24,6 +24,17 @@ export interface EditorSnapshot {
   pointAt(offset: number): DomPoint
 }
 
+function readTag(element: Element): AgentInputTag | undefined {
+  const data = element.getAttribute(tagAttribute)
+  return data === null ? undefined : JSON.parse(data) as AgentInputTag
+}
+
+export function tagFromTarget(editor: HTMLElement, target: EventTarget | null): AgentInputTag | undefined {
+  if (!(target instanceof Element)) return
+  const tag = target.closest(`[${tagAttribute}]`)
+  if (tag && editor.contains(tag)) return readTag(tag)
+}
+
 export function renderEditor(editor: HTMLElement, content: AgentInputContent): EditorSnapshot {
   const doc = editor.ownerDocument
   const fragment = doc.createDocumentFragment()
@@ -42,7 +53,8 @@ export function renderEditor(editor: HTMLElement, content: AgentInputContent): E
       continue
     }
     if (typeof content[index - 1] !== 'string') appendGuard()
-    const tag = doc.createElement('span')
+    const tag = doc.createElement('button')
+    tag.type = 'button'
     tag.className = 'agent-input__tag'
     tag.contentEditable = 'false'
     tag.setAttribute(tagAttribute, JSON.stringify(part))
@@ -94,10 +106,10 @@ export function readEditor(editor: HTMLElement): EditorSnapshot {
     }
     if (node.nodeType !== Node.ELEMENT_NODE) return
     const element = node as HTMLElement
-    const tag = element.getAttribute(tagAttribute)
-    if (tag !== null) {
+    const tag = readTag(element)
+    if (tag) {
       boundaries.set(node, [length, length + 1])
-      content.push(JSON.parse(tag) as AgentInputTag)
+      content.push(tag)
       length++
       return
     }

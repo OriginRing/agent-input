@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref, shallowRef } from 'vue'
 import { AgentInput } from '../src'
-import type { AgentInputContent, AgentInputExpose, AgentInputItem, AgentInputSendPayload, AgentInputTag, AgentInputTheme } from '../src'
+import type { AgentInputContent, AgentInputExpose, AgentInputItem, AgentInputSendPayload, AgentInputSuggestion, AgentInputTag, AgentInputTheme } from '../src'
 import SuggestionMenu from './SuggestionMenu.vue'
 
 const agents: AgentInputItem[] = [
@@ -16,19 +16,52 @@ const tags: AgentInputTag[] = [
   { label: '选中内容', value: 'selection' },
 ]
 
+const connectors: AgentInputItem[] = [
+  { label: 'GitHub', value: 'github' },
+  { label: 'Notion', value: 'notion' },
+  { label: 'Google Drive', value: 'google-drive' },
+]
+
+const mentionGroups = [
+  {
+    id: 'add', label: '添加', items: [
+      { label: '上传文件', value: 'file', disabled: true },
+      { label: '上传文件夹', value: 'folder', disabled: true },
+    ],
+  },
+  { id: 'agent', label: '智能体', items: agents },
+  { id: 'connector', label: '连接器', items: connectors },
+]
+const tagGroups = [{ id: 'tag', label: '插入正文标签', items: tags }]
+
 const composer = ref<AgentInputExpose | null>(null)
 const menu = ref<InstanceType<typeof SuggestionMenu> | null>(null)
 const theme = ref<AgentInputTheme>('light')
 const content = ref<AgentInputContent>([])
 const agent = ref<AgentInputItem | null>(agents[0])
+const selectedConnectors = ref<AgentInputItem[]>([])
 const loading = ref(false)
 const lastSend = shallowRef<AgentInputSendPayload | null>(null)
+const lastTagClick = shallowRef<AgentInputTag | null>(null)
 const sendCount = ref(0)
 const stopCount = ref(0)
 
-function filterItems(items: AgentInputTag[], query: string) {
-  const keyword = query.toLowerCase()
-  return items.filter(item => item.label.toLowerCase().includes(keyword) || item.value.toLowerCase().includes(keyword))
+function handleSuggestion(item: AgentInputTag, group: string, suggestion: AgentInputSuggestion) {
+  if (group === 'agent') {
+    suggestion.setAgent(item)
+  } else if (group === 'tag') {
+    suggestion.insertTag(item)
+  } else if (group === 'connector') {
+    if (!selectedConnectors.value.some(connector => connector.value === item.value)) {
+      selectedConnectors.value.push(item)
+    }
+    suggestion.close({ clearTrigger: true })
+  }
+}
+
+function removeConnector(value: string) {
+  selectedConnectors.value = selectedConnectors.value.filter(connector => connector.value !== value)
+  composer.value?.focus()
 }
 
 function fillExample() {
@@ -60,7 +93,7 @@ function handleStop() {
       <header class="demo__heading">
         <div>
           <h1>智能体输入框</h1>
-          <p>输入 <kbd>@</kbd> 选择智能体，输入 <kbd>/</kbd> 插入正文标签。</p>
+          <p>输入 <kbd>@</kbd> 查看添加选项、智能体和连接器，输入 <kbd>/</kbd> 插入正文标签。</p>
         </div>
         <button class="demo__button" type="button" @click="theme = theme === 'light' ? 'dark' : 'light'">
           {{ theme === 'light' ? '深色主题' : '浅色主题' }}
@@ -79,6 +112,7 @@ function handleStop() {
           placeholder="输入消息…"
           @send="handleSend"
           @stop="handleStop"
+          @tag-click="lastTagClick = $event"
           @suggestion-keydown="menu?.handleKeydown($event)"
         >
           <template #header>
@@ -86,14 +120,22 @@ function handleStop() {
               <button type="button" class="demo__button" @click="fillExample">填入示例</button>
               <button type="button" class="demo__button" @click="clearDraft">清空正文</button>
             </div>
+            <ul v-if="selectedConnectors.length" class="demo__connectors" role="list" aria-label="已选连接器">
+              <li v-for="connector in selectedConnectors" :key="connector.value">
+                <span>{{ connector.label }}</span>
+                <button type="button" :aria-label="`移除连接器 ${connector.label}`" @click="removeConnector(connector.value)">
+                  <span aria-hidden="true">×</span>
+                </button>
+              </li>
+            </ul>
           </template>
-          <template #suggestion="{ trigger, query, setAgent, insertTag }">
+          <template #suggestion="suggestion">
             <SuggestionMenu
+              :key="suggestion.trigger"
               ref="menu"
-              :title="trigger === '@' ? '选择智能体' : '插入正文标签'"
-              :query="query"
-              :items="filterItems(trigger === '@' ? agents : tags, query)"
-              @select="trigger === '@' ? setAgent($event) : insertTag($event)"
+              :groups="suggestion.trigger === '@' ? mentionGroups : tagGroups"
+              :query="suggestion.query"
+              @select="(item, group) => handleSuggestion(item, group, suggestion)"
             />
           </template>
           <template #footer>
@@ -112,6 +154,11 @@ function handleStop() {
         </header>
         <pre v-if="lastSend" data-testid="payload">{{ JSON.stringify(lastSend, null, 2) }}</pre>
         <p v-else>点击发送按钮或按 Enter 查看事件载荷。</p>
+      </section>
+
+      <section v-if="lastTagClick" class="demo__result demo__tag-result" aria-labelledby="tag-result-heading">
+        <h2 id="tag-result-heading">最近点击的标签</h2>
+        <pre data-testid="tag-item">{{ JSON.stringify(lastTagClick, null, 2) }}</pre>
       </section>
     </main>
   </div>

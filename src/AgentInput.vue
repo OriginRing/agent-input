@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useId, watch } from 'vue'
 import { draftLength, normalizeDraft, sameDraft, serializeDraft, sliceDraft } from './draft'
 import type { DraftSelection } from './draft'
-import { readEditor, readSelection, renderEditor, restoreSelection } from './editor-dom'
+import { readEditor, readSelection, renderEditor, restoreSelection, tagFromTarget } from './editor-dom'
 import type { EditorSnapshot } from './editor-dom'
 import type {
   AgentInputContent,
@@ -28,6 +28,7 @@ const emit = defineEmits<{
   'update:modelValue': [content: AgentInputContent]
   'update:agent': [agent: AgentInputItem | null]
   'suggestion-keydown': [event: KeyboardEvent]
+  'tag-click': [item: AgentInputTag]
   send: [payload: AgentInputSendPayload]
   stop: []
 }>()
@@ -227,19 +228,25 @@ function insertTag(item: AgentInputTag) {
   replaceSelection(selection, [item], { focus: true })
 }
 
-function insertSuggestedTag(item: AgentInputTag) {
+function applySuggestion(content: AgentInputContent) {
   const selection = suggestion.value
-  if (!selection) return
+  if (!selection) return false
   closeSuggestion()
-  replaceSelection(selection, [item], { focus: true })
+  replaceSelection(selection, content, { focus: true })
+  return true
+}
+
+function insertSuggestedTag(item: AgentInputTag) {
+  applySuggestion([item])
 }
 
 function setSuggestedAgent(item: AgentInputItem) {
-  const selection = suggestion.value
-  if (!selection) return
-  closeSuggestion()
-  replaceSelection(selection, [], { focus: true })
-  setAgent(item)
+  if (applySuggestion([])) setAgent(item)
+}
+
+function closeSuggestionPanel(options?: { clearTrigger?: boolean }) {
+  if (options?.clearTrigger) applySuggestion([])
+  else closeSuggestion()
 }
 
 function send() {
@@ -268,8 +275,18 @@ function deleteTag(event: Event, direction: -1 | 1, selection: DraftSelection) {
   replaceSelection(target, [])
 }
 
+function handleEditorMouseDown(event: MouseEvent) {
+  if (event.button === 0 && editor.value && tagFromTarget(editor.value, event.target)) event.preventDefault()
+}
+
+function handleEditorClick(event: MouseEvent) {
+  if (!editor.value) return
+  const item = tagFromTarget(editor.value, event.target)
+  if (item) emit('tag-click', item)
+}
+
 function handleEditorKeydown(event: KeyboardEvent) {
-  if (isComposing.value || event.isComposing || event.keyCode === 229) return
+  if (event.target !== editor.value || isComposing.value || event.isComposing || event.keyCode === 229) return
   if (suggestion.value && event.key !== 'Escape') {
     emit('suggestion-keydown', event)
     if (event.defaultPrevented) return
@@ -396,7 +413,7 @@ defineExpose<AgentInputExpose>({ focus, setAgent, insertTag })
         :query="suggestion.query"
         :set-agent="setSuggestedAgent"
         :insert-tag="insertSuggestedTag"
-        :close="closeSuggestion"
+        :close="closeSuggestionPanel"
       />
     </div>
 
@@ -424,6 +441,8 @@ defineExpose<AgentInputExpose>({ focus, setAgent, insertTag })
         :aria-label="ariaLabel"
         :aria-placeholder="placeholder"
         :aria-controls="suggestion ? panelId : undefined"
+        @mousedown="handleEditorMouseDown"
+        @click="handleEditorClick"
         @keydown="handleEditorKeydown"
         @beforeinput="handleBeforeInput"
         @input="handleInput"

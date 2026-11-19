@@ -13,6 +13,15 @@ async function expectPayload(page: Page, payload: Record<string, unknown>) {
   await expect.poll(async () => JSON.parse(await result.innerText())).toMatchObject(payload)
 }
 
+async function expectBareClose(control: Locator) {
+  await control.hover()
+  await expect(control).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await control.focus()
+  await expect(control).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await expect(control).toHaveCSS('border-top-width', '0px')
+  await expect(control).toHaveCSS('outline-style', 'none')
+}
+
 async function placeBesideTag(tag: Locator, edge: 'before' | 'after') {
   await tag.evaluate((element, side) => {
     const range = document.createRange()
@@ -81,7 +90,9 @@ test('places the agent beside the first line and gives subsequent lines the full
   expect(Math.abs(second.x - chip.x)).toBeLessThan(1)
   expect(second.y).toBeGreaterThan(first.y)
 
-  await button(page, '移除智能体 通用助手').click()
+  const remove = button(page, '移除智能体 通用助手')
+  await expectBareClose(remove)
+  await remove.click()
   expect(Math.abs((await glyph('测')).x - chip.x)).toBeLessThan(1)
   await expect(editor).toBeFocused()
   await editor.press('Enter')
@@ -172,6 +183,51 @@ test('uses caller suggestions for agents and tags and restores the caret after m
   await expect(page.getByText('@研究助手')).toHaveCount(0)
 })
 
+test('stacks mention groups in a scrollable panel and manages connector chips', async ({ page }) => {
+  const editor = textbox(page)
+  const suggestions = panel(page)
+  const selected = page.locator('.agent-input__header').getByRole('list', { name: '已选连接器' })
+
+  await editor.pressSequentially('note@')
+  const add = suggestions.getByRole('group', { name: '添加' })
+  const agents = suggestions.getByRole('group', { name: '智能体' })
+  const connectors = suggestions.getByRole('group', { name: '连接器' })
+  expect((await add.boundingBox())!.y).toBeLessThan((await agents.boundingBox())!.y)
+  expect((await agents.boundingBox())!.y).toBeLessThan((await connectors.boundingBox())!.y)
+  await expect(add.getByRole('button', { name: '上传文件', exact: true })).toBeDisabled()
+  await expect(add.getByRole('button', { name: '上传文件夹', exact: true })).toBeDisabled()
+  await expect(agents.getByRole('button', { name: '研究助手' })).toBeVisible()
+  const size = await suggestions.evaluate(element => ({ height: element.clientHeight, content: element.scrollHeight }))
+  expect(size.height).toBeLessThanOrEqual(256)
+  expect(size.content).toBeGreaterThan(size.height)
+
+  await editor.press('ArrowUp')
+  await expect.poll(() => suggestions.evaluate(element => element.scrollTop)).toBeGreaterThan(0)
+  await connectors.getByRole('button', { name: /GitHub/i }).click()
+  await expect(selected.getByRole('listitem')).toHaveCount(1)
+  await expect(selected.getByText('GitHub')).toBeVisible()
+  await expect(editor).toBeFocused()
+  await expect(suggestions).toHaveCount(0)
+
+  await editor.pressSequentially('@github')
+  await expect(suggestions.getByRole('group')).toHaveCount(1)
+  await expect(connectors.getByRole('button', { name: /GitHub/i })).toBeVisible()
+  await editor.press('Enter')
+  await expect(selected.getByRole('listitem')).toHaveCount(1)
+
+  await editor.pressSequentially('@notion')
+  await editor.press('Enter')
+  await expect(selected.getByRole('listitem')).toHaveCount(2)
+  const remove = selected.getByRole('button', { name: '移除连接器 GitHub' })
+  await expectBareClose(remove)
+  await remove.click()
+  await expect(selected.getByRole('listitem')).toHaveCount(1)
+  await expect(selected.getByText('Notion')).toBeVisible()
+  await expect(tags(page)).toHaveCount(0)
+  await editor.press('Enter')
+  await expectPayload(page, { text: 'note', content: ['note'], agent: { value: 'general' } })
+})
+
 test('dismisses the panel without discarding typed text or sending', async ({ page }) => {
   const editor = textbox(page)
   await editor.pressSequentially('/unknown')
@@ -236,14 +292,37 @@ test('deletes adjacent tags atomically with both keys and across a selection', a
   await expectPayload(page, { content: ['请。'] })
 })
 
+test('shows a background on tag hover and emits the item on click or keyboard activation', async ({ page }) => {
+  const editor = textbox(page)
+  const link = editor.getByRole('button', { name: '参考链接' })
+  const custom = editor.getByRole('button', { name: '季度报告' })
+  const item = page.getByTestId('tag-item')
+
+  await button(page, '填入示例').click()
+  await editor.focus()
+  await expect(link).toHaveCSS('color', 'rgb(0, 102, 255)')
+  await expect(link).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await link.hover()
+  await expect(link).toHaveCSS('background-color', 'rgb(239, 239, 239)')
+  await link.click()
+  await expect(item).toBeVisible()
+  expect(JSON.parse(await item.innerText())).toEqual({ label: '参考链接', value: 'reference.url' })
+  await expect(editor).toBeFocused()
+
+  await custom.focus()
+  await custom.press('Enter')
+  await expect.poll(async () => JSON.parse(await item.innerText())).toEqual(report)
+  await expect(page.getByText('发送 0 次 · 停止 0 次')).toBeVisible()
+})
+
 test('keeps personalized tag colors after refill and works in a narrow dark layout', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 })
   await button(page, '填入示例').click()
   await expect(tags(page).first().locator('.agent-input__tag-label')).toHaveCSS('color', 'rgb(163, 51, 18)')
-  await expect(tags(page).nth(1)).toHaveCSS('color', 'rgb(41, 41, 41)')
+  await expect(tags(page).nth(1)).toHaveCSS('color', 'rgb(0, 102, 255)')
   await button(page, '深色主题').click()
   await expect(tags(page).first().locator('.agent-input__tag-label')).toHaveCSS('color', 'rgb(255, 173, 145)')
-  await expect(tags(page).nth(1)).toHaveCSS('color', 'rgb(242, 242, 242)')
+  await expect(tags(page).nth(1)).toHaveCSS('color', 'rgb(0, 102, 255)')
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375)
   await button(page, '清空正文').click()
   await textbox(page).pressSequentially('/')

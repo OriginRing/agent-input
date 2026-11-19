@@ -65,12 +65,14 @@ function send(payload: AgentInputSendPayload) {
 | `ariaLabel` | `string` | `'消息正文'`。 |
 | `loading` | `boolean` | `false`。开启后发送按钮切换为停止按钮。 |
 
-`AgentInputItem` 包含 `label`、`value` 和可选的 `img` 图片地址。正文的 `AgentInputTag` 还接受可选的 `color`，用于设置标签文字的 CSS 颜色。可以在组件根元素覆盖 `--agent-input-surface`、`--agent-input-text`、`--agent-input-tag-color` 等主题变量。
+`AgentInputItem` 包含 `label`、`value` 和可选的 `img` 图片地址。正文标签的默认文字色为 `#06f`，默认背景透明，悬停或键盘聚焦时显示背景。`AgentInputTag` 可通过 `color` 覆盖文字色，也可在组件根元素设置 `--agent-input-tag-color` 和 `--agent-input-tag-background`。
+
+点击正文标签会触发 `tag-click(item)`，返回对应的 `AgentInputTag`。标签聚焦时，Enter 和空格也可触发该事件。
 
 ## 插槽与方法
 
 - `#header` 在正文区域上方渲染。`#footer` 填满发送按钮左侧的剩余宽度，两者之间留有 `0.5rem` 间距。头部智能体放在正文第一行开头，后续行使用完整正文宽度。
-- `#suggestion` 接收 `{ trigger, query, setAgent, insertTag, close }`。面板在组件内部的 `#header` 上方展开，候选超出面板高度时可滚动。调用方决定候选数据、筛选和列表内容。两个选择方法都会替换当前触发符及查询词，操作完成后恢复正文焦点。`close()` 保留已输入的文字。
+- `#suggestion` 接收 `{ trigger, query, setAgent, insertTag, close }`。面板在组件内部的 `#header` 上方展开，最大高度为 `min(16rem, 50dvh)`，超出时在面板内滚动。调用方决定候选数据、筛选和列表内容。两个选择方法都会替换当前触发符及查询词，操作完成后恢复正文焦点。`close()` 保留已输入的文字，`close({ clearTrigger: true })` 会移除当前触发符及查询词并恢复正文焦点。
 - `suggestion-keydown` 在面板打开时提供正文的 `KeyboardEvent`。调用方接管方向键或 Enter 时调用 `event.preventDefault()`。未处理的 Enter 关闭面板。Escape 关闭面板，Shift+Enter 换行。
 - 通过 `ref<AgentInputExpose>()` 可调用 `focus()`、`setAgent(itemOrNull)` 和 `insertTag(tag)`。ref 上的 `setAgent` 直接设置头部智能体。ref 上的 `insertTag` 替换当前或最近一次正文选区，尚无选区时在末尾追加。
 

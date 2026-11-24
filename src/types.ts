@@ -31,6 +31,7 @@ export interface AgentInputSendPayload {
 
 export interface AgentInputExpose {
   focus(): void
+  openSuggestion(trigger: AgentInputTrigger): void
   setAgent(item: AgentInputItem | null): void
   insertTag(item: AgentInputTag): void
 }

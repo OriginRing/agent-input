@@ -42,6 +42,7 @@ const slots = defineSlots<{
 interface ActiveSuggestion extends DraftSelection {
   trigger: AgentInputTrigger
   query: string
+  hasTriggerText: boolean
 }
 
 const root = ref<HTMLElement | null>(null)
@@ -89,28 +90,54 @@ function closeSuggestion() {
   suggestion.value = null
 }
 
-function updateSuggestion(selection: DraftSelection | null, insertedText = '') {
+function openSuggestion(trigger: AgentInputTrigger) {
+  const element = editor.value
+  const scroller = scrollArea.value
+  if (!slots.suggestion || !element || !scroller || !snapshot || isComposing.value) return
+
+  const end = selectionOrEnd().end
+  const position = { start: end, end }
+  element.focus({ preventScroll: true })
+  restoreSelection(scroller, snapshot, position)
+  lastSelection = position
+  suggestion.value = { ...position, trigger, query: '', hasTriggerText: false }
+}
+
+function updateSuggestion(selection: DraftSelection | null, insertedText?: string) {
   if (!slots.suggestion || !selection || selection.start !== selection.end) {
     closeSuggestion()
     return
   }
 
   const end = selection.end
-  const triggerIndex = Math.max(insertedText.lastIndexOf('@'), insertedText.lastIndexOf('/'))
-  const start = triggerIndex === -1 ? suggestion.value?.start : end - insertedText.length + triggerIndex
-  if (start === undefined) return
+  const previous = suggestion.value
+  const text = insertedText ?? ''
+  const triggerIndex = Math.max(text.lastIndexOf('@'), text.lastIndexOf('/'))
+  const start = triggerIndex === -1 ? previous?.start : end - text.length + triggerIndex
+  const trigger = triggerIndex === -1 ? previous?.trigger : text[triggerIndex] as AgentInputTrigger
+  if (start === undefined || trigger === undefined) return
+  const hasTriggerText = triggerIndex !== -1 || previous?.hasTriggerText === true
 
-  const [word, ...remaining] = sliceDraft(draft.value, start, end)
-  if (typeof word !== 'string' || remaining.length || !/^[@/][^\s@/]*$/u.test(word)) {
+  if (!hasTriggerText && insertedText === undefined && end !== previous?.end) {
     closeSuggestion()
     return
   }
 
-  const trigger = word[0] as AgentInputTrigger
-  const query = word.slice(1)
-  const previous = suggestion.value
-  if (previous?.start !== start || previous.end !== end || previous.trigger !== trigger || previous.query !== query) {
-    suggestion.value = { start, end, trigger, query }
+  const [word = '', ...remaining] = sliceDraft(draft.value, start, end)
+  if (end < start || typeof word !== 'string' || remaining.length || (hasTriggerText && word[0] !== trigger)) {
+    closeSuggestion()
+    return
+  }
+
+  const query = hasTriggerText ? word.slice(1) : word
+  if (/[\s@/]/u.test(query)) {
+    closeSuggestion()
+    return
+  }
+
+  if (previous?.start !== start || previous.end !== end || previous.trigger !== trigger ||
+    previous.query !== query || previous.hasTriggerText !== hasTriggerText) {
+    suggestion.value = { start, end, trigger, query, hasTriggerText }
   }
 }
 
@@ -158,7 +185,7 @@ function replaceSelection(
   const position = { start: caret, end: caret }
   const changed = commitDraft(next)
   renderDraft(next, position, options.focus)
-  updateSuggestion(position, options.typed)
+  updateSuggestion(position, options.typed ?? '')
   if (changed) emit('update:modelValue', normalizeDraft(next))
 }
 
@@ -394,7 +421,7 @@ onBeforeUnmount(() => {
   doc?.removeEventListener('pointercancel', clearPointerDown, true)
 })
 
-defineExpose<AgentInputExpose>({ focus, setAgent, insertTag })
+defineExpose<AgentInputExpose>({ focus, openSuggestion, setAgent, insertTag })
 </script>
 
 <template>

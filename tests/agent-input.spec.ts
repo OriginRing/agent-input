@@ -183,6 +183,34 @@ test('uses caller suggestions for agents and tags and restores the caret after m
   await expect(page.getByText('@研究助手')).toHaveCount(0)
 })
 
+test('opens suggestions from external buttons without inserting trigger characters', async ({ page }) => {
+  const editor = textbox(page)
+  await editor.pressSequentially('abcd')
+  await editor.press('ArrowLeft')
+  await editor.press('ArrowLeft')
+  await editor.press('Shift+ArrowLeft')
+
+  await button(page, '打开 @ 候选').click()
+  await expect(panel(page)).toBeVisible()
+  await expect(editor).toBeFocused()
+  await expect(editor).toContainText('abcd')
+  await editor.pressSequentially('research')
+  await expect(button(page, '通用助手 general')).toHaveCount(0)
+  await button(page, '研究助手 research').click()
+  await expect(page.getByText('@研究助手')).toBeVisible()
+  await expect(editor).toContainText('abcd')
+
+  await button(page, '打开 / 候选').click()
+  await expect(button(page, '季度报告')).toBeVisible()
+  await editor.press('ArrowRight')
+  await expect(panel(page)).toHaveCount(0)
+  await editor.press('ArrowLeft')
+  await button(page, '打开 / 候选').click()
+  await button(page, '季度报告').click()
+  await editor.press('Enter')
+  await expectPayload(page, { text: 'ab report.pdf cd', content: ['ab', report, 'cd'], agent: { value: 'research' } })
+})
+
 test('stacks mention groups in a scrollable panel and manages connector chips', async ({ page }) => {
   const editor = textbox(page)
   const suggestions = panel(page)

@@ -50,10 +50,11 @@ function handleSend({ text }: AgentInputSendPayload) {
 <script setup lang="ts">
 import { ref } from 'vue'
 import { AgentInput } from 'vue-agent-input'
-import type { AgentInputContent, AgentInputItem, AgentInputTag } from 'vue-agent-input'
+import type { AgentInputContent, AgentInputExpose, AgentInputItem, AgentInputTag } from 'vue-agent-input'
 import 'vue-agent-input/style.css'
 
 const draft = ref<AgentInputContent>([])
+const composer = ref<AgentInputExpose | null>(null)
 const agent = ref<AgentInputItem | null>(null)
 const agents: AgentInputItem[] = [{ label: '研究助手', value: 'research' }]
 const tags: AgentInputTag[] = [{ label: '季度报告', value: 'report.pdf' }]
@@ -71,7 +72,9 @@ function handleTagClick(item: AgentInputTag) {
 </script>
 
 <template>
-  <AgentInput v-model="draft" v-model:agent="agent" @tag-click="handleTagClick">
+  <button type="button" @click="composer?.openSuggestion('@')">选择智能体</button>
+  <button type="button" @click="composer?.openSuggestion('/')">插入标签</button>
+  <AgentInput ref="composer" v-model="draft" v-model:agent="agent" @tag-click="handleTagClick">
     <template #suggestion="{ trigger, query, setAgent, insertTag }">
       <button
         v-for="item in filterCandidates(trigger === '@' ? agents : tags, query)"
@@ -86,7 +89,9 @@ function handleTagClick(item: AgentInputTag) {
 </template>
 ```
 
-`setAgent(item)` 和 `insertTag(item)` 都会移除当前触发符及查询词，并恢复正文焦点。`close()` 收起面板并保留已输入的文字。`close({ clearTrigger: true })` 适用于连接器等自定义候选，会移除触发符及查询词并恢复焦点。
+组件外部的按钮或快捷键可以通过 ref 调用 `openSuggestion('@')` 或 `openSuggestion('/')`。面板以空查询打开，光标回到最近的编辑位置。有选区时从选区末尾开始，首次编辑时从正文末尾开始。此时正文保持原样，可以直接输入查询词。
+
+`setAgent(item)` 和 `insertTag(item)` 都会清除当前查询词及正文中的触发符，并恢复正文焦点。`close()` 收起面板并保留已输入的文字。`close({ clearTrigger: true })` 适用于连接器等自定义候选，会清除查询词及正文中的触发符并恢复焦点。
 
 按 Escape 关闭候选面板。需要自定义方向键或 Enter 选择时，监听 `suggestion-keydown`，并对接管的按键调用 `event.preventDefault()`。面板打开时，未接管的 Enter 会收起面板。
 
@@ -149,6 +154,7 @@ const draft: AgentInputContent = [
 | 方法 | 用途 |
 | --- | --- |
 | `focus()` | 将焦点移回正文。 |
+| `openSuggestion(trigger)` | 为 `@` 或 `/` 打开 `#suggestion`，并聚焦正文。 |
 | `setAgent(item)` | 设置首行智能体，传 `null` 清除。 |
 | `insertTag(item)` | 用标签替换当前或最近的正文选区，未建立选区时追加到末尾。 |
 

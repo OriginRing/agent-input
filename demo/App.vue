@@ -95,9 +95,13 @@ function handleStop() {
           <h1>智能体输入框</h1>
           <p>输入 <kbd>@</kbd> 查看添加选项、智能体和连接器，输入 <kbd>/</kbd> 插入正文标签。</p>
         </div>
-        <button class="demo__button" type="button" @click="theme = theme === 'light' ? 'dark' : 'light'">
-          {{ theme === 'light' ? '深色主题' : '浅色主题' }}
-        </button>
+        <div class="demo__tools">
+          <button class="demo__button" type="button" @click="composer?.openSuggestion('@')">打开 @ 候选</button>
+          <button class="demo__button" type="button" @click="composer?.openSuggestion('/')">打开 / 候选</button>
+          <button class="demo__button" type="button" @click="theme = theme === 'light' ? 'dark' : 'light'">
+            {{ theme === 'light' ? '深色主题' : '浅色主题' }}
+          </button>
+        </div>
       </header>
 
       <div class="demo__stage">

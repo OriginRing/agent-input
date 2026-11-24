@@ -1,16 +1,14 @@
 # Vue Agent Input
 
-面向智能体和聊天产品的 Vue 3 输入框。支持 `@` 智能体选择、`/` 正文标签、自定义候选面板，以及发送和停止事件。正文可以混排文本与可点击标签，使用 `v-model` 保存和回填草稿。
+面向智能体和聊天应用的 Vue 3 输入框。正文支持混排文本、固定标签、可编辑标签和下拉标签，并可通过 `v-model` 保存和回填。通过插槽自定义 `@` 和 `/` 候选，通过事件接入发送与停止操作。
 
-![demo](https://github.com/OriginRing/agent-input/blob/master/demo/assets/input.png)
+![Vue Agent Input 输入框演示](https://raw.githubusercontent.com/OriginRing/agent-input/master/demo/assets/input.png)
 
-![demo](https://github.com/OriginRing/agent-input/blob/master/demo/assets/input2.png)
+![Vue Agent Input 正文标签演示](https://raw.githubusercontent.com/OriginRing/agent-input/master/demo/assets/input2.png)
 
 ## 安装
 
-需要 Vue 3.5 或更新的 Vue 3 版本。包以 ESM 发布，附带 TypeScript 声明和编译好的 CSS。
-
-浏览器最低支持 Chrome 90。
+在 Vue 3.5 或更新版本的 Vue 3 项目中安装。包提供 ESM、TypeScript 声明和独立 CSS，Chrome 最低支持版本为 90。
 
 ```sh
 npm install vue-agent-input
@@ -40,7 +38,7 @@ function handleSend({ text }: AgentInputSendPayload) {
 </template>
 ```
 
-在正文中按 Enter 发送，按 Shift+Enter 换行。空草稿也会触发 `send`，此时 `text` 为 `''`，`content` 为 `[]`。草稿由调用方清空，智能体通过 `v-model:agent` 独立管理。
+在正文中按 Enter 发送，按 Shift+Enter 换行。空草稿也会触发 `send`，此时 `text` 为 `''`，`content` 为 `[]`。清空草稿后，通过 `v-model:agent` 绑定的智能体仍可继续使用。
 
 ## 自定义 `@` 和 `/` 候选
 
@@ -57,9 +55,21 @@ const draft = ref<AgentInputContent>([])
 const composer = ref<AgentInputExpose | null>(null)
 const agent = ref<AgentInputItem | null>(null)
 const agents: AgentInputItem[] = [{ label: '研究助手', value: 'research' }]
-const tags: AgentInputTag[] = [{ label: '季度报告', value: 'report.pdf' }]
+const tags: AgentInputTag[] = [
+  { type: 'tag', label: '季度报告', value: 'report.pdf' },
+  { type: 'input', label: '输出语言', value: '中文' },
+  {
+    type: 'select',
+    label: '文章主题',
+    value: 'campus',
+    options: [
+      { label: 'Campus', value: 'campus' },
+      { label: 'Travel', value: 'travel' },
+    ],
+  },
+]
 
-function filterCandidates(items: AgentInputItem[], query: string) {
+function filterCandidates<T extends AgentInputItem>(items: T[], query: string) {
   const keyword = query.toLowerCase()
   return items.filter(item =>
     item.label.toLowerCase().includes(keyword) || item.value.toLowerCase().includes(keyword),
@@ -101,37 +111,39 @@ function handleTagClick(item: AgentInputTag) {
 
 | `type` | 显示与交互 |
 | --- | --- |
-| `tag`（默认） | 显示 `label`，值在插入时确定。 |
-| `input` | 显示 `value`，为空时显示 `label` 作为占位文字。点击后编辑单行内容，按 Enter 或移开焦点保存，按 Escape 取消。 |
-| `select` | 显示与 `value` 匹配的选项 `label`，无匹配时显示标签的 `label`。点击展开下拉，也可使用方向键和 Enter 选择。 |
+| `tag`（默认） | 显示 `label`，插入后值固定。 |
+| `input` | 显示 `value`，为空时显示 `label` 作为占位文字。编辑框随内容伸缩。按 Enter 或移开焦点保存，按 Escape 取消。 |
+| `select` | 显示与 `value` 匹配的选项 `label`。点击展开下拉，也可使用方向键和 Enter 选择。 |
 
-```ts
-composer.value?.insertTag({ type: 'tag', label: '季度报告', value: 'report.pdf' })
-composer.value?.insertTag({ type: 'input', label: '输出语言', value: '中文' })
-composer.value?.insertTag({
-  type: 'select',
-  label: '文章主题',
-  value: 'campus',
-  options: [
-    { label: 'Campus', value: 'campus' },
-    { label: 'Travel', value: 'travel' },
-  ],
-})
-```
+`select` 的 `options` 由 `{ label, value }` 组成，每个选项的 `value` 应唯一。可通过 `value` 预选，或用空字符串展示标签的 `label` 作为占位文字。选择后，`v-model` 更新标签的 `value`，同时保留 `options`。
 
-`select` 的 `options` 包含 `{ label, value }`，每个选项的 `value` 应唯一。选择后，`v-model` 更新标签的 `value`，保留 `options`。此前使用 `editable: true` 的代码可改用 `type: 'input'`，旧草稿回填时会自动转换。
-
-`send` 的参数为 `{ text, content, agent }`。`text` 是可提交的纯文本，`content` 保留标签对象和顺序，`agent` 是当前智能体或 `null`。序列化时，标签展开为 `value`，和相邻内容之间缺少空白时会补一个空格。下面的草稿会生成 `请看 report.pdf 谢谢`。
+`send` 的参数为 `{ text, content, agent }`。`text` 将标签展开为 `value`，并在相邻内容缺少空白时补一个空格。空值仍保留在结构化的 `content` 中。`agent` 是当前智能体或 `null`。下面的草稿可以通过 `v-model` 回填，发送时会生成 `请参考 report.pdf 用 中文 写一篇关于 campus 的文章`。
 
 ```ts
 import type { AgentInputContent } from 'vue-agent-input'
 
 const draft: AgentInputContent = [
-  '请看',
-  { label: '季度报告', value: 'report.pdf' },
-  '谢谢',
+  '请参考',
+  { type: 'tag', label: '季度报告', value: 'report.pdf' },
+  '用',
+  { type: 'input', label: '输出语言', value: '中文' },
+  '写一篇关于',
+  {
+    type: 'select',
+    label: '文章主题',
+    value: 'campus',
+    options: [
+      { label: 'Campus', value: 'campus' },
+      { label: 'Travel', value: 'travel' },
+    ],
+  },
+  '的文章',
 ]
 ```
+
+### 升级到 0.3.0
+
+将创建标签时的 `editable: true` 改为 `type: 'input'`。已保存的旧草稿回填时会自动转换。省略 `type` 的普通标签继续按 `tag` 处理。
 
 ## API
 
@@ -182,7 +194,7 @@ const draft: AgentInputContent = [
 
 ## 主题与样式
 
-使用 `theme="dark"` 切换到深色主题。普通标签默认文字色为 `#06f`，背景透明，在悬停或键盘聚焦时显示背景。可在组件根元素上覆盖 CSS 变量，也可通过单个标签的 `color` 设置文字颜色。
+使用 `theme="dark"` 切换到深色主题。普通标签和首行智能体名称默认使用 `#06f`。可在组件根元素上覆盖 CSS 变量，也可通过单个正文标签的 `color` 设置文字颜色。
 
 ```vue
 <AgentInput
@@ -191,7 +203,12 @@ const draft: AgentInputContent = [
 />
 ```
 
-常用变量还有 `--agent-input-surface`、`--agent-input-text`、`--agent-input-border` 和 `--agent-input-focus`。
+| CSS 变量 | 用途 |
+| --- | --- |
+| `--agent-input-surface`、`--agent-input-text`、`--agent-input-border`、`--agent-input-focus` | 输入框背景、正文、边框与焦点颜色。 |
+| `--agent-input-agent-color` | 智能体标签的 `@` 与名称颜色。 |
+| `--agent-input-tag-color`、`--agent-input-tag-background` | 普通标签文字和悬停背景，也用于输入标签的编辑态背景。 |
+| `--agent-input-select-color`、`--agent-input-select-background`、`--agent-input-select-highlight` | 下拉标签文字、背景与选项高亮。 |
 
 ## 本地开发
 

@@ -1,6 +1,6 @@
 {
   "name": "vue-agent-input",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A Vue composer with inline tags and customizable suggestion panels.",
   "license": "MIT",
   "keywords": [

@@ -11,9 +11,27 @@ const agents: AgentInputItem[] = [
 ]
 
 const skills: AgentInputTag[] = [
-  { label: '季度报告', value: 'report.pdf', color: 'var(--demo-report-label)' },
+  { type: 'tag', label: '季度报告', value: 'report.pdf', color: 'var(--demo-report-label)' },
   { label: '参考链接', value: 'reference.url' },
   { label: '选中内容', value: 'selection' },
+]
+
+const outputLanguage = { type: 'input', label: '输出语言', value: '中文' } satisfies AgentInputTag
+const articleTopic = {
+  type: 'select',
+  label: '文章主题',
+  value: 'campus',
+  options: [
+    { label: 'Campus', value: 'campus' },
+    { label: 'Travel', value: 'travel' },
+    { label: 'Technology', value: 'technology' },
+  ],
+} satisfies AgentInputTag
+
+const inlineTags: AgentInputTag[] = [
+  outputLanguage,
+  { type: 'input', label: '输出格式', value: 'Markdown' },
+  articleTopic,
 ]
 
 const connectors: AgentInputItem[] = [
@@ -32,7 +50,10 @@ const mentionGroups = [
   { id: 'agent', label: '智能体', items: agents },
   { id: 'connector', label: '连接器', items: connectors },
 ]
-const tagGroups = [{ id: 'skill', label: '技能', items: skills }]
+const slashGroups = [
+  { id: 'skill', label: '技能', items: skills },
+  { id: 'tag', label: '标签', items: inlineTags },
+]
 
 const composer = ref<AgentInputExpose | null>(null)
 const menu = ref<InstanceType<typeof SuggestionMenu> | null>(null)
@@ -58,7 +79,7 @@ function handleSuggestion(item: AgentInputTag, group: string, suggestion: AgentI
     picker.click()
   } else if (group === 'agent') {
     suggestion.setAgent(item)
-  } else if (group === 'skill') {
+  } else if (group === 'skill' || group === 'tag') {
     suggestion.insertTag(item)
   } else if (group === 'connector') {
     if (!selectedConnectors.value.some(connector => connector.value === item.value)) {
@@ -80,7 +101,21 @@ function removeConnector(value: string) {
 }
 
 function fillExample() {
-  content.value = ['请读一下', skills[0], '，再打开', skills[1], '。']
+  content.value = [
+    '请读一下', skills[0], '，再打开', skills[1], '。',
+    '\n用', outputLanguage, '写一篇关于', articleTopic, '的文章。',
+    '\n字数要求', { type: 'input', label: '输入字数', value: '' }, '，输出格式',
+    {
+      type: 'select',
+      label: '选择输出格式',
+      value: '',
+      options: [
+        { label: 'Markdown', value: 'markdown' },
+        { label: '纯文本', value: 'plain-text' },
+      ],
+    },
+    '。',
+  ]
 }
 
 async function clearDraft() {
@@ -108,7 +143,7 @@ function handleStop() {
       <header class="demo__heading">
         <div>
           <h1>智能体输入框</h1>
-          <p>输入 <kbd>@</kbd> 查看添加选项、智能体和连接器，输入 <kbd>/</kbd> 插入正文标签。</p>
+          <p>输入 <kbd>@</kbd> 查看智能体和连接器，输入 <kbd>/</kbd> 插入技能、可编辑标签或下拉标签。</p>
         </div>
         <div class="demo__tools">
           <button class="demo__button" type="button" @click="composer?.openSuggestion('@')">打开 @ 候选</button>
@@ -153,7 +188,7 @@ function handleStop() {
             <SuggestionMenu
               :key="suggestion.trigger"
               ref="menu"
-              :groups="suggestion.trigger === '@' ? mentionGroups : tagGroups"
+              :groups="suggestion.trigger === '@' ? mentionGroups : slashGroups"
               :query="suggestion.query"
               @select="(item, group) => handleSuggestion(item, group, suggestion)"
             />

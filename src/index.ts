@@ -7,6 +7,7 @@ export type {
   AgentInputSendPayload,
   AgentInputSuggestion,
   AgentInputTag,
+  AgentInputTagOption,
   AgentInputTheme,
   AgentInputTrigger,
 } from './types.js'

@@ -97,7 +97,29 @@ function handleTagClick(item: AgentInputTag) {
 
 ## 正文标签与发送数据
 
-`AgentInputContent` 由字符串和 `AgentInputTag` 按顺序组成。标签的 `label` 用于显示，`img` 和 `color` 分别设置可选图片和文字颜色。使用 Backspace 或 Delete 可以整块删除相邻标签。
+`AgentInputContent` 由字符串和 `AgentInputTag` 按顺序组成。通过组件 ref 或候选插槽提供的 `insertTag` 插入。三种标签都支持可选的 `img` 和 `color`，并可用 Backspace 或 Delete 整块删除。
+
+| `type` | 显示与交互 |
+| --- | --- |
+| `tag`（默认） | 显示 `label`，值在插入时确定。 |
+| `input` | 显示 `value`，为空时显示 `label` 作为占位文字。点击后编辑单行内容，按 Enter 或移开焦点保存，按 Escape 取消。 |
+| `select` | 显示与 `value` 匹配的选项 `label`，无匹配时显示标签的 `label`。点击展开下拉，也可使用方向键和 Enter 选择。 |
+
+```ts
+composer.value?.insertTag({ type: 'tag', label: '季度报告', value: 'report.pdf' })
+composer.value?.insertTag({ type: 'input', label: '输出语言', value: '中文' })
+composer.value?.insertTag({
+  type: 'select',
+  label: '文章主题',
+  value: 'campus',
+  options: [
+    { label: 'Campus', value: 'campus' },
+    { label: 'Travel', value: 'travel' },
+  ],
+})
+```
+
+`select` 的 `options` 包含 `{ label, value }`，每个选项的 `value` 应唯一。选择后，`v-model` 更新标签的 `value`，保留 `options`。此前使用 `editable: true` 的代码可改用 `type: 'input'`，旧草稿回填时会自动转换。
 
 `send` 的参数为 `{ text, content, agent }`。`text` 是可提交的纯文本，`content` 保留标签对象和顺序，`agent` 是当前智能体或 `null`。序列化时，标签展开为 `value`，和相邻内容之间缺少空白时会补一个空格。下面的草稿会生成 `请看 report.pdf 谢谢`。
 
@@ -160,7 +182,7 @@ const draft: AgentInputContent = [
 
 ## 主题与样式
 
-使用 `theme="dark"` 切换到深色主题。正文标签默认文字色为 `#06f`，背景透明，在悬停或键盘聚焦时显示背景。可在组件根元素上覆盖 CSS 变量，也可通过单个标签的 `color` 设置文字颜色。
+使用 `theme="dark"` 切换到深色主题。普通标签默认文字色为 `#06f`，背景透明，在悬停或键盘聚焦时显示背景。可在组件根元素上覆盖 CSS 变量，也可通过单个标签的 `color` 设置文字颜色。
 
 ```vue
 <AgentInput

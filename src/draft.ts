@@ -15,7 +15,13 @@ export function normalizeDraft(content: AgentInputContent): AgentInputContent {
   const result: AgentInputContent = []
   for (const part of content) {
     if (typeof part !== 'string') {
-      result.push({ ...part })
+      // Drafts saved before type was introduced can still contain editable.
+      const { editable, ...tag } = part as AgentInputTag & { editable?: boolean }
+      if (tag.type === 'select') {
+        result.push({ ...tag, options: (tag.options ?? []).map(option => ({ ...option })) })
+      } else {
+        result.push(tag.type === undefined && editable ? { ...tag, type: 'input' } : tag)
+      }
       continue
     }
     if (part === '') continue
@@ -31,8 +37,12 @@ export function sameDraft(first: AgentInputContent, second: AgentInputContent): 
   return first.length === second.length && first.every((part, index) => {
     const other = second[index]
     if (typeof part === 'string' || typeof other === 'string') return part === other
-    return part.label === other.label && part.value === other.value &&
-      part.img === other.img && part.color === other.color
+    if (part.label !== other.label || part.value !== other.value ||
+      part.img !== other.img || part.color !== other.color || part.type !== other.type) return false
+    if (part.type !== 'select' || other.type !== 'select') return true
+    return part.options.length === other.options.length && part.options.every((option, index) =>
+      option.label === other.options[index].label && option.value === other.options[index].value,
+    )
   })
 }
 

@@ -29,10 +29,45 @@ function readTag(element: Element): AgentInputTag | undefined {
   return data === null ? undefined : JSON.parse(data) as AgentInputTag
 }
 
-export function tagFromTarget(editor: HTMLElement, target: EventTarget | null): AgentInputTag | undefined {
+export function tagFromTarget(editor: HTMLElement, target: EventTarget | null) {
   if (!(target instanceof Element)) return
-  const tag = target.closest(`[${tagAttribute}]`)
-  if (tag && editor.contains(tag)) return readTag(tag)
+  const element = target.closest<HTMLButtonElement>(`button[${tagAttribute}]`)
+  if (!element || !editor.contains(element)) return
+  const item = readTag(element)
+  if (item) return { element, item }
+}
+
+export function createEditorTag(doc: Document, item: AgentInputTag): HTMLButtonElement {
+  const tag = doc.createElement('button')
+  tag.type = 'button'
+  tag.className = 'agent-input__tag'
+  tag.contentEditable = 'false'
+  tag.setAttribute(tagAttribute, JSON.stringify(item))
+
+  const label = doc.createElement('span')
+  label.className = 'agent-input__tag-label'
+  label.textContent = item.label
+  if (item.type === 'input') label.textContent = item.value || item.label
+  if (item.type === 'select') {
+    const option = item.options.find(option => option.value === item.value)
+    label.textContent = option?.label ?? item.label
+    tag.classList.add('agent-input__tag--select')
+    tag.setAttribute('aria-haspopup', 'listbox')
+    tag.setAttribute('aria-expanded', 'false')
+    if (option && option.label !== item.label) tag.setAttribute('aria-label', `${item.label} ${option.label}`)
+    if (!item.options.length) tag.setAttribute('aria-disabled', 'true')
+  }
+  if (item.color) label.style.color = item.color
+
+  if (item.img) {
+    const image = doc.createElement('img')
+    image.src = item.img
+    image.alt = ''
+    image.draggable = false
+    tag.append(image)
+  }
+  tag.append(label)
+  return tag
 }
 
 export function renderEditor(editor: HTMLElement, content: AgentInputContent): EditorSnapshot {
@@ -53,24 +88,7 @@ export function renderEditor(editor: HTMLElement, content: AgentInputContent): E
       continue
     }
     if (typeof content[index - 1] !== 'string') appendGuard()
-    const tag = doc.createElement('button')
-    tag.type = 'button'
-    tag.className = 'agent-input__tag'
-    tag.contentEditable = 'false'
-    tag.setAttribute(tagAttribute, JSON.stringify(part))
-    if (part.img) {
-      const image = doc.createElement('img')
-      image.src = part.img
-      image.alt = ''
-      image.draggable = false
-      tag.append(image)
-    }
-    const label = doc.createElement('span')
-    label.className = 'agent-input__tag-label'
-    label.textContent = part.label
-    if (part.color) label.style.color = part.color
-    tag.append(label)
-    fragment.append(tag)
+    fragment.append(createEditorTag(doc, part))
   }
 
   const last = content[content.length - 1]

@@ -5,7 +5,7 @@ const textbox = (page: Page) => page.getByRole('textbox', { name: '消息正文'
 const button = (page: Page, name: string) => page.getByRole('button', { name })
 const panel = (page: Page) => page.locator('.agent-input__suggestion')
 const tags = (page: Page) => textbox(page).locator('.agent-input__tag')
-const report = { label: '季度报告', value: 'report.pdf', color: 'var(--demo-report-label)' }
+const report = { type: 'tag', label: '季度报告', value: 'report.pdf', color: 'var(--demo-report-label)' }
 
 async function expectPayload(page: Page, payload: Record<string, unknown>) {
   const result = page.getByTestId('payload')
@@ -63,6 +63,7 @@ test('gives the footer slot the remaining width with a fixed-size action and a g
 test('places the agent beside the first line and gives subsequent lines the full editor width', async ({ page }) => {
   const editor = textbox(page)
   const agent = page.locator('.agent-input__agent')
+  await expect(agent.locator('.agent-input__agent-label')).toHaveCSS('color', 'rgb(0, 102, 255)')
   await editor.focus()
   await page.keyboard.insertText('测试文本')
   await editor.press('Shift+Enter')
@@ -91,6 +92,7 @@ test('places the agent beside the first line and gives subsequent lines the full
   expect(second.y).toBeGreaterThan(first.y)
 
   const remove = button(page, '移除智能体 通用助手')
+  await expect(remove).toHaveCSS('color', 'rgb(41, 41, 41)')
   await expectBareClose(remove)
   await remove.click()
   expect(Math.abs((await glyph('测')).x - chip.x)).toBeLessThan(1)
@@ -120,8 +122,8 @@ test('keeps the empty caret between the agent and placeholder before and after c
 
   await editor.click({ position: { x: 240, y: 12 } })
   await expectEmptyCaret()
-  await button(page, '插入报告标签').click()
-  await button(page, '插入报告标签').click()
+  await button(page, '插入报告技能').click()
+  await button(page, '插入报告技能').click()
   await expect(tags(page)).toHaveCount(2)
   await button(page, '清空正文').click()
   await expect(tags(page)).toHaveCount(0)
@@ -309,8 +311,8 @@ test('inserts at a saved selection and serializes adjacent tags and line breaks'
   await editor.press('ArrowLeft')
   await editor.press('Shift+ArrowLeft')
   await editor.press('Shift+ArrowLeft')
-  await button(page, '插入报告标签').click()
-  await button(page, '插入报告标签').click()
+  await button(page, '插入报告技能').click()
+  await button(page, '插入报告技能').click()
   await expect(tags(page)).toHaveCount(2)
   await editor.press('Shift+Enter')
   await editor.pressSequentially('z')
@@ -320,17 +322,17 @@ test('inserts at a saved selection and serializes adjacent tags and line breaks'
 
 test('deletes adjacent tags atomically with both keys and across a selection', async ({ page }) => {
   const editor = textbox(page)
-  await button(page, '插入报告标签').click()
+  await button(page, '插入报告技能').click()
   await editor.press('Backspace')
   await expect(tags(page)).toHaveCount(0)
 
-  await button(page, '插入报告标签').click()
+  await button(page, '插入报告技能').click()
   await placeBesideTag(tags(page).first(), 'before')
   await editor.press('Delete')
   await expect(tags(page)).toHaveCount(0)
 
   await button(page, '填入示例').click()
-  await expect(tags(page)).toHaveCount(2)
+  await expect(tags(page)).toHaveText(['季度报告', '参考链接', '中文', 'Campus', '输入字数', '选择输出格式'])
   await editor.focus()
   await editor.evaluate((element) => {
     const range = document.createRange()
@@ -343,6 +345,161 @@ test('deletes adjacent tags atomically with both keys and across a selection', a
   await expect(tags(page)).toHaveCount(0)
   await editor.press('Enter')
   await expectPayload(page, { content: ['请。'] })
+})
+
+test('refills all tag types and lets the user complete the blank fields', async ({ page }) => {
+  const editor = textbox(page)
+  await button(page, '填入示例').click()
+  await editor.getByRole('button', { name: '输入字数' }).click()
+  const wordCount = editor.getByRole('textbox', { name: '编辑标签 输入字数' })
+  await expect(wordCount).toHaveValue('')
+  await wordCount.fill('500')
+  await wordCount.press('Enter')
+
+  await editor.getByRole('button', { name: '选择输出格式' }).click()
+  const options = page.getByRole('listbox', { name: '选择输出格式' })
+  await expect(options.getByRole('option', { selected: true })).toHaveCount(0)
+  await options.getByRole('option', { name: 'Markdown' }).click()
+  await expect(tags(page)).toHaveText(['季度报告', '参考链接', '中文', 'Campus', '500', 'Markdown'])
+  await editor.press('Enter')
+  await expectPayload(page, {
+    text: '请读一下 report.pdf ，再打开 reference.url 。\n用 中文 写一篇关于 campus 的文章。\n字数要求 500 ，输出格式 markdown 。',
+  })
+})
+
+test('edits a preset tag inline, saves on Enter or blur, and cancels on Escape', async ({ page }) => {
+  const editor = textbox(page)
+  const field = page.getByRole('textbox', { name: '编辑标签 输出语言' })
+  await editor.pressSequentially('Please use /')
+  await panel(page).getByRole('button', { name: '输出语言 中文' }).click()
+  await expect(editor).toBeFocused()
+  await expect(tags(page)).toHaveText(['中文'])
+
+  await tags(page).first().click()
+  await expect(field).toBeFocused()
+  await expect(field).toHaveValue('中文')
+  await expect(field).toHaveAttribute('placeholder', '输出语言')
+  await expect(field).toHaveCSS('border-top-width', '0px')
+  await expect(field).toHaveCSS('border-top-left-radius', '6px')
+  await expect(field).toHaveCSS('background-color', 'rgb(239, 239, 239)')
+  const fieldWidth = () => field.evaluate(element => element.getBoundingClientRect().width)
+  const initialWidth = await fieldWidth()
+  await field.fill('简体中文和 English')
+  const expandedWidth = await fieldWidth()
+  expect(expandedWidth).toBeGreaterThan(initialWidth)
+  await field.clear()
+  const placeholderWidth = await fieldWidth()
+  expect(placeholderWidth).toBeGreaterThan(initialWidth)
+  expect(placeholderWidth).toBeLessThan(expandedWidth)
+  await field.fill('日语')
+  expect(await fieldWidth()).toBeCloseTo(initialWidth)
+  await field.press('Enter')
+  await expect(editor).toBeFocused()
+  await expect(tags(page)).toHaveText(['日语'])
+  await expect(page.getByText('发送 0 次 · 停止 0 次')).toBeVisible()
+
+  await tags(page).first().press('Space')
+  await field.fill('/draft@')
+  await field.press('Escape')
+  await expect(editor).toBeFocused()
+  await expect(tags(page)).toHaveText(['日语'])
+  await expect(panel(page)).toHaveCount(0)
+
+  await tags(page).first().click()
+  await page.keyboard.insertText('法语')
+  await page.getByRole('heading', { name: '最近一次发送' }).click()
+  await expect(tags(page)).toHaveText(['法语'])
+
+  await tags(page).first().click()
+  await field.clear()
+  await field.press('Enter')
+  await expect(tags(page)).toHaveText(['输出语言'])
+
+  await tags(page).first().click()
+  await field.fill('英语')
+  await button(page, '发送消息').click()
+  await expectPayload(page, {
+    text: 'Please use 英语',
+    content: ['Please use ', { type: 'input', label: '输出语言', value: '英语' }],
+  })
+
+  await button(page, '停止生成').click()
+  await button(page, '深色主题').click()
+  await page.setViewportSize({ width: 320, height: 667 })
+  await editor.pressSequentially('/')
+  await panel(page).getByRole('button', { name: '输出语言 中文' }).click()
+  await tags(page).first().click()
+  await expect(field).toHaveCSS('background-color', 'rgb(54, 54, 54)')
+  await field.fill('宽'.repeat(80))
+  expect(await fieldWidth()).toBeLessThanOrEqual((await editor.boundingBox())!.width)
+  await field.clear()
+  await button(page, '发送消息').click()
+  await expectPayload(page, {
+    text: '',
+    content: [{ type: 'input', label: '输出语言', value: '' }],
+  })
+})
+
+test('selects a tag option with the mouse and keyboard and sends its value', async ({ page }) => {
+  const editor = textbox(page)
+  const menu = page.getByRole('listbox', { name: '文章主题' })
+  const topic = (label: string) => editor.getByRole('button', { name: `文章主题 ${label}` })
+  await page.setViewportSize({ width: 320, height: 667 })
+  await editor.pressSequentially('Write about /')
+  await panel(page).getByRole('button', { name: '文章主题 campus' }).click()
+  await expect(tags(page)).toHaveText(['Campus'])
+
+  await topic('Campus').click()
+  await expect(menu).toBeFocused()
+  await expect(topic('Campus')).toHaveAttribute('aria-expanded', 'true')
+  await expect(menu.getByRole('option', { name: 'Campus' })).toHaveAttribute('aria-selected', 'true')
+  const menuBox = (await menu.boundingBox())!
+  expect(menuBox.x).toBeGreaterThanOrEqual(0)
+  expect(menuBox.x + menuBox.width).toBeLessThanOrEqual(320)
+
+  await menu.press('Escape')
+  await expect(topic('Campus')).toBeFocused()
+  await expect(menu).toHaveCount(0)
+  await topic('Campus').press('ArrowDown')
+  await expect(menu).toBeFocused()
+  await menu.getByRole('option', { name: 'Travel' }).click()
+  await expect(editor).toBeFocused()
+  await expect(tags(page)).toHaveText(['Travel'])
+
+  await topic('Travel').press('Space')
+  await menu.press('ArrowDown')
+  await menu.press('Enter')
+  await expect(menu).toHaveCount(0)
+  await expect(editor).toBeFocused()
+  await expect(tags(page)).toHaveText(['Technology'])
+  await editor.pressSequentially('please')
+  await editor.press('Enter')
+  await expectPayload(page, {
+    text: 'Write about technology please',
+    content: ['Write about ', {
+      type: 'select', label: '文章主题', value: 'technology',
+      options: [
+        { label: 'Campus', value: 'campus' },
+        { label: 'Travel', value: 'travel' },
+        { label: 'Technology', value: 'technology' },
+      ],
+    }, 'please'],
+  })
+})
+
+test('deletes input and select tags as whole tokens with the same keys as skills', async ({ page }) => {
+  const editor = textbox(page)
+  await button(page, '插入报告技能').click()
+  await editor.pressSequentially('/')
+  await panel(page).getByRole('button', { name: '输出语言 中文' }).click()
+  await editor.pressSequentially('/')
+  await panel(page).getByRole('button', { name: '文章主题 campus' }).click()
+  await expect(tags(page)).toHaveText(['季度报告', '中文', 'Campus'])
+  await editor.press('Backspace')
+  await expect(tags(page)).toHaveText(['季度报告', '中文'])
+  await placeBesideTag(tags(page).last(), 'before')
+  await editor.press('Delete')
+  await expect(tags(page)).toHaveText(['季度报告'])
 })
 
 test('shows a background on tag hover and emits the item on click or keyboard activation', async ({ page }) => {
@@ -374,6 +531,8 @@ test('keeps personalized tag colors after refill and works in a narrow dark layo
   await expect(tags(page).first().locator('.agent-input__tag-label')).toHaveCSS('color', 'rgb(163, 51, 18)')
   await expect(tags(page).nth(1)).toHaveCSS('color', 'rgb(0, 102, 255)')
   await button(page, '深色主题').click()
+  await expect(page.locator('.agent-input__agent-label')).toHaveCSS('color', 'rgb(0, 102, 255)')
+  await expect(button(page, '移除智能体 通用助手')).toHaveCSS('color', 'rgb(242, 242, 242)')
   await expect(tags(page).first().locator('.agent-input__tag-label')).toHaveCSS('color', 'rgb(255, 173, 145)')
   await expect(tags(page).nth(1)).toHaveCSS('color', 'rgb(0, 102, 255)')
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375)

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useId, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, useId, watch } from 'vue'
 import { draftLength, normalizeDraft, sameDraft, serializeDraft, sliceDraft } from './draft.js'
 import type { DraftSelection } from './draft.js'
-import { readEditor, readSelection, renderEditor, restoreSelection, tagFromTarget } from './editor-dom.js'
+import { createEditorTag, readEditor, readSelection, renderEditor, restoreSelection, tagFromTarget } from './editor-dom.js'
 import type { EditorSnapshot } from './editor-dom.js'
 import type {
   AgentInputContent,
@@ -45,10 +45,30 @@ interface ActiveSuggestion extends DraftSelection {
   hasTriggerText: boolean
 }
 
+interface TagEdit {
+  element: HTMLButtonElement
+  item: AgentInputTag
+  field: HTMLSpanElement
+  input: HTMLInputElement
+  initialValue: string
+}
+
+interface TagSelect {
+  element: HTMLButtonElement
+  item: Extract<AgentInputTag, { type: 'select' }>
+  start: number
+  selectedIndex: number
+}
+
 const root = ref<HTMLElement | null>(null)
 const scrollArea = ref<HTMLElement | null>(null)
 const editor = ref<HTMLElement | null>(null)
-const panelId = `agent-input-suggestion-${useId()}`
+const id = useId()
+const panelId = `agent-input-suggestion-${id}`
+const tagMenuId = `agent-input-tag-menu-${id}`
+const tagMenu = ref<HTMLElement | null>(null)
+const tagSelect = shallowRef<TagSelect | null>(null)
+const activeOption = ref(0)
 const draft = shallowRef(normalizeDraft(props.modelValue ?? []))
 const localAgent = shallowRef<AgentInputItem | null>(null)
 const agent = computed(() => props.agent === undefined ? localAgent.value : props.agent)
@@ -56,6 +76,7 @@ const suggestion = shallowRef<ActiveSuggestion | null>(null)
 const isComposing = ref(false)
 let snapshot: EditorSnapshot | null = null
 let lastSelection: DraftSelection | null = null
+let tagEdit: TagEdit | null = null
 let pendingExternalDraft: AgentInputContent | null = null
 let doc: Document | undefined
 let pointerDownInside = false
@@ -95,6 +116,8 @@ function openSuggestion(trigger: AgentInputTrigger) {
   const scroller = scrollArea.value
   if (!slots.suggestion || !element || !scroller || !snapshot || isComposing.value) return
 
+  finishTagEdit(true)
+  closeTagSelect()
   const end = selectionOrEnd().end
   const position = { start: end, end }
   element.focus({ preventScroll: true })
@@ -152,6 +175,8 @@ function handleSelectionChange() {
 function renderDraft(content: AgentInputContent, selection: DraftSelection | null, shouldFocus = false) {
   const element = editor.value
   if (!element) return
+  closeTagSelect()
+  tagEdit = null
   snapshot = renderEditor(element, content)
   if (!selection) return
 
@@ -250,6 +275,7 @@ function removeAgent() {
 }
 
 function insertTag(item: AgentInputTag) {
+  finishTagEdit(true)
   const selection = selectionOrEnd()
   closeSuggestion()
   replaceSelection(selection, [item], { focus: true })
@@ -278,6 +304,8 @@ function closeSuggestionPanel(options?: { clearTrigger?: boolean }) {
 
 function send() {
   if (props.loading || isComposing.value) return
+  finishTagEdit(true)
+  closeTagSelect()
   const content = normalizeDraft(draft.value)
   emit('send', { text: serializeDraft(content), content, agent: agent.value && { ...agent.value } })
 }
@@ -306,14 +334,194 @@ function handleEditorMouseDown(event: MouseEvent) {
   if (event.button === 0 && editor.value && tagFromTarget(editor.value, event.target)) event.preventDefault()
 }
 
+function finishTagEdit(save: boolean) {
+  const element = editor.value
+  const edit = tagEdit
+  if (!element || !edit) return
+  tagEdit = null
+
+  const { field, input, item, initialValue } = edit
+  const changed = save && input.value !== initialValue
+  const tag = changed ? createEditorTag(element.ownerDocument, { ...item, value: input.value }) : edit.element
+  field.replaceWith(tag)
+  snapshot = readEditor(element)
+  if (changed && commitDraft(snapshot.content)) emit('update:modelValue', normalizeDraft(draft.value))
+}
+
+function editTag(element: HTMLButtonElement, item: AgentInputTag) {
+  const start = snapshot?.offsetAt(element, 0)
+  if (start === undefined) return
+  closeSuggestion()
+  lastSelection = { start: start + 1, end: start + 1 }
+
+  const doc = element.ownerDocument
+  const field = doc.createElement('span')
+  field.className = 'agent-input__tag-edit'
+  field.contentEditable = 'false'
+
+  const input = doc.createElement('input')
+  input.type = 'text'
+  input.className = 'agent-input__tag-input'
+  input.setAttribute('aria-label', `编辑标签 ${item.label}`)
+  input.placeholder = item.label
+  input.value = item.value
+  field.dataset.text = input.value || input.placeholder
+  field.append(input)
+  tagEdit = { element, item, field, input, initialValue: input.value }
+
+  // The native input edits the value without passing its editing events to the draft editor.
+  for (const name of ['beforeinput', 'compositionstart', 'compositionend', 'paste', 'cut', 'drop']) {
+    input.addEventListener(name, event => event.stopPropagation())
+  }
+  input.addEventListener('input', event => {
+    event.stopPropagation()
+    field.dataset.text = input.value || input.placeholder
+  })
+  input.addEventListener('blur', () => {
+    if (tagEdit?.input === input) finishTagEdit(true)
+  })
+  input.addEventListener('keydown', event => {
+    if (tagEdit?.input !== input || event.isComposing || event.keyCode === 229) return
+    if (event.key !== 'Enter' && event.key !== 'Escape') return
+    event.preventDefault()
+    event.stopPropagation()
+    finishTagEdit(event.key === 'Enter')
+    focus()
+  })
+
+  element.replaceWith(field)
+  input.focus({ preventScroll: true })
+  input.select()
+}
+
+function closeTagSelect(restoreFocus = false) {
+  const select = tagSelect.value
+  if (!select) return
+  tagSelect.value = null
+  select.element.setAttribute('aria-expanded', 'false')
+  select.element.removeAttribute('aria-controls')
+  if (restoreFocus) select.element.focus({ preventScroll: true })
+}
+
+function positionTagMenu(event?: Event) {
+  const select = tagSelect.value
+  const menu = tagMenu.value
+  const container = root.value
+  const scroller = scrollArea.value
+  if (!select || !menu || !container || !scroller || event?.target === menu) return
+
+  const anchor = select.element.getBoundingClientRect()
+  const body = scroller.getBoundingClientRect()
+  const viewport = container.ownerDocument.documentElement
+  const gap = 4
+  const gutter = 8
+  if (anchor.bottom <= Math.max(0, body.top) || anchor.top >= Math.min(viewport.clientHeight, body.bottom)) {
+    closeTagSelect()
+    return
+  }
+
+  const bounds = container.getBoundingClientRect()
+  const below = viewport.clientHeight - anchor.bottom - gap - gutter
+  const above = anchor.top - gap - gutter
+  const maxWidth = viewport.clientWidth - gutter * 2
+  menu.style.maxWidth = `${maxWidth}px`
+  menu.style.minWidth = `${Math.min(anchor.width, maxWidth)}px`
+  menu.style.removeProperty('--agent-input-tag-menu-room')
+  const upwards = below < menu.offsetHeight && above > below
+  menu.style.setProperty('--agent-input-tag-menu-room', `${Math.max(0, upwards ? above : below)}px`)
+  const left = Math.max(gutter, Math.min(anchor.left, viewport.clientWidth - menu.offsetWidth - gutter))
+  const top = upwards ? anchor.top - gap - menu.offsetHeight : anchor.bottom + gap
+  menu.style.left = `${left - bounds.left - container.clientLeft}px`
+  menu.style.top = `${top - bounds.top - container.clientTop}px`
+}
+
+function openTagSelect(element: HTMLButtonElement, item: TagSelect['item']) {
+  const start = snapshot?.offsetAt(element, 0)
+  if (start === undefined || !item.options.length) return
+  closeSuggestion()
+  closeTagSelect()
+  lastSelection = { start: start + 1, end: start + 1 }
+  const selectedIndex = item.options.findIndex(option => option.value === item.value)
+  const select = { element, item, start, selectedIndex }
+  activeOption.value = Math.max(0, selectedIndex)
+  tagSelect.value = select
+  element.setAttribute('aria-expanded', 'true')
+  element.setAttribute('aria-controls', tagMenuId)
+  void nextTick(() => {
+    if (tagSelect.value !== select) return
+    positionTagMenu()
+    if (!tagSelect.value) return
+    tagMenu.value?.focus({ preventScroll: true })
+    scrollToActiveOption()
+  })
+}
+
+function setTagOption(index: number) {
+  const select = tagSelect.value
+  if (!select) return
+  closeTagSelect()
+  const { start, item } = select
+  replaceSelection({ start, end: start + 1 }, [{ ...item, value: item.options[index].value }], { focus: true })
+}
+
+function scrollToActiveOption() {
+  tagMenu.value?.children[activeOption.value]?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+}
+
+function handleTagMenuKeydown(event: KeyboardEvent) {
+  const select = tagSelect.value
+  if (!select) return
+  const count = select.item.options.length
+  switch (event.key) {
+    case 'Escape':
+      closeTagSelect(true)
+      break
+    case 'Enter':
+    case ' ':
+      setTagOption(activeOption.value)
+      break
+    case 'ArrowDown':
+      activeOption.value = (activeOption.value + 1) % count
+      break
+    case 'ArrowUp':
+      activeOption.value = (activeOption.value + count - 1) % count
+      break
+    case 'Home':
+      activeOption.value = 0
+      break
+    case 'End':
+      activeOption.value = count - 1
+      break
+    default:
+      return
+  }
+  event.preventDefault()
+  event.stopPropagation()
+  if (tagSelect.value) scrollToActiveOption()
+}
+
 function handleEditorClick(event: MouseEvent) {
   if (!editor.value) return
-  const item = tagFromTarget(editor.value, event.target)
-  if (item) emit('tag-click', item)
+  const tag = tagFromTarget(editor.value, event.target)
+  if (!tag) return
+  finishTagEdit(true)
+  if (tagSelect.value?.element === tag.element) closeTagSelect(true)
+  else if (tag.item.type === 'select') openTagSelect(tag.element, tag.item)
+  else if (tag.item.type === 'input') editTag(tag.element, tag.item)
+  emit('tag-click', tag.item)
 }
 
 function handleEditorKeydown(event: KeyboardEvent) {
-  if (event.target !== editor.value || isComposing.value || event.isComposing || event.keyCode === 229) return
+  if (isComposing.value || event.isComposing || event.keyCode === 229) return
+  if (event.target !== editor.value) {
+    if (!editor.value || (event.key !== 'ArrowDown' && event.key !== 'ArrowUp')) return
+    const tag = tagFromTarget(editor.value, event.target)
+    if (tag?.item.type === 'select') {
+      event.preventDefault()
+      openTagSelect(tag.element, tag.item)
+    }
+    return
+  }
   if (suggestion.value && event.key !== 'Escape') {
     emit('suggestion-keydown', event)
     if (event.defaultPrevented) return
@@ -380,8 +588,11 @@ function handleCut(event: ClipboardEvent) {
 }
 
 function handlePointerDown(event: PointerEvent) {
-  pointerDownInside = root.value !== null && event.composedPath().includes(root.value)
+  const path = event.composedPath()
+  pointerDownInside = root.value !== null && path.includes(root.value)
   if (!pointerDownInside) closeSuggestion()
+  if (tagSelect.value && !path.includes(tagSelect.value.element) &&
+    (!tagMenu.value || !path.includes(tagMenu.value))) closeTagSelect()
 }
 
 function clearPointerDown() {
@@ -412,13 +623,18 @@ onMounted(() => {
   doc?.addEventListener('pointerdown', handlePointerDown, true)
   doc?.addEventListener('pointerup', clearPointerDown, true)
   doc?.addEventListener('pointercancel', clearPointerDown, true)
+  doc?.addEventListener('scroll', positionTagMenu, true)
+  doc?.defaultView?.addEventListener('resize', positionTagMenu)
 })
 
 onBeforeUnmount(() => {
+  tagEdit = null
   doc?.removeEventListener('selectionchange', handleSelectionChange)
   doc?.removeEventListener('pointerdown', handlePointerDown, true)
   doc?.removeEventListener('pointerup', clearPointerDown, true)
   doc?.removeEventListener('pointercancel', clearPointerDown, true)
+  doc?.removeEventListener('scroll', positionTagMenu, true)
+  doc?.defaultView?.removeEventListener('resize', positionTagMenu)
 })
 
 defineExpose<AgentInputExpose>({ focus, openSuggestion, setAgent, insertTag })
@@ -479,6 +695,32 @@ defineExpose<AgentInputExpose>({ focus, openSuggestion, setAgent, insertTag })
         @cut="handleCut"
         @drop.prevent
       ></div>
+    </div>
+
+    <div
+      v-if="tagSelect"
+      :id="tagMenuId"
+      ref="tagMenu"
+      class="agent-input__tag-menu"
+      role="listbox"
+      tabindex="-1"
+      :aria-label="tagSelect.item.label"
+      :aria-activedescendant="`${tagMenuId}-${activeOption}`"
+      @keydown="handleTagMenuKeydown"
+      @focusout="closeTagSelect()"
+    >
+      <div
+        v-for="(option, index) in tagSelect.item.options"
+        :id="`${tagMenuId}-${index}`"
+        :key="option.value"
+        class="agent-input__tag-option"
+        role="option"
+        :aria-selected="index === tagSelect.selectedIndex"
+        :data-active="index === activeOption"
+        @pointerenter="activeOption = index"
+        @mousedown.prevent
+        @click="setTagOption(index)"
+      >{{ option.label }}</div>
     </div>
 
     <div class="agent-input__footer">

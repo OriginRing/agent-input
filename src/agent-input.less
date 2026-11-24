@@ -12,7 +12,10 @@
   --agent-input-focus: #595959;
   --agent-input-tag-background: #efefef;
   --agent-input-tag-color: #06f;
-  --agent-input-agent-color: #292929;
+  --agent-input-select-background: #eff5ff;
+  --agent-input-select-highlight: #e0eeff;
+  --agent-input-agent-color: #06f;
+  --agent-input-agent-remove-color: #292929;
   --agent-input-action-background: #171717;
   --agent-input-action-hover: #3b3b3b;
   --agent-input-action-color: #fff;
@@ -25,7 +28,10 @@
     --agent-input-border: #4a4a4a;
     --agent-input-focus: #bdbdbd;
     --agent-input-tag-background: #363636;
-    --agent-input-agent-color: #f2f2f2;
+    --agent-input-agent-remove-color: #f2f2f2;
+    --agent-input-select-background: #263453;
+    --agent-input-select-highlight: #34476c;
+    --agent-input-select-color: #8ab4ff;
     --agent-input-action-background: #f5f5f5;
     --agent-input-action-hover: #d7d7d7;
     --agent-input-action-color: #171717;
@@ -117,6 +123,92 @@
     }
   }
 
+  &__tag--select {
+    background: var(--agent-input-select-background);
+    color: var(--agent-input-select-color, var(--agent-input-tag-color));
+
+    &:hover, &:focus-visible, &[aria-expanded='true'] {
+      background: var(--agent-input-select-highlight);
+    }
+
+    &::after {
+      flex: none;
+      border: .25em solid transparent;
+      border-block-start-color: currentColor;
+      border-block-end: 0;
+      content: '';
+    }
+  }
+
+  &__tag-menu {
+    position: absolute;
+    z-index: 2;
+    box-sizing: border-box;
+    inline-size: max-content;
+    max-block-size: min(14rem, var(--agent-input-tag-menu-room, 100vh));
+    padding: .25rem;
+    overflow: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--agent-input-border);
+    border-radius: .5rem;
+    outline: none;
+    background: var(--agent-input-surface);
+    color: var(--agent-input-text);
+    box-shadow: 0 .4rem 1.25rem rgb(0 0 0 / 18%);
+    font-size: .875rem;
+  }
+
+  &__tag-option {
+    padding: .35rem .65rem;
+    border-radius: .3rem;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+
+    &[data-active='true'] {
+      background: var(--agent-input-select-highlight);
+      color: var(--agent-input-select-color, var(--agent-input-tag-color));
+    }
+  }
+
+  &__tag-edit {
+    --agent-input-tag-edit-padding: .4rem;
+
+    position: relative;
+    display: inline-block;
+    box-sizing: border-box;
+    max-inline-size: calc(100% - .25rem);
+    block-size: 1.25rem;
+    margin-inline: .125rem;
+    padding-inline: var(--agent-input-tag-edit-padding);
+    border-radius: .375rem;
+    font-size: .875rem;
+    vertical-align: middle;
+
+    // Measure the displayed text in the same font on browsers without field-sizing.
+    &::before {
+      display: block;
+      overflow: hidden;
+      visibility: hidden;
+      white-space: pre;
+      content: attr(data-text);
+    }
+  }
+
+  &__tag-input {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    inline-size: 100%;
+    block-size: 100%;
+    padding: 0 var(--agent-input-tag-edit-padding);
+    border: 0;
+    border-radius: inherit;
+    outline: none;
+    background: var(--agent-input-tag-background);
+    color: inherit;
+    font: inherit;
+  }
+
   &__agent {
     float: var(--agent-input-float-start, left);
     max-inline-size: 55%;
@@ -178,7 +270,7 @@
     background: transparent;
     box-shadow: none;
     outline: none;
-    color: inherit;
+    color: var(--agent-input-agent-remove-color);
     -webkit-tap-highlight-color: transparent;
 
     &:focus-visible path { stroke-width: 2.6; }

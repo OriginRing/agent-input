@@ -4,9 +4,16 @@ export interface AgentInputItem {
   img?: string
 }
 
-export interface AgentInputTag extends AgentInputItem {
-  color?: string
+export interface AgentInputTagOption {
+  label: string
+  value: string
 }
+
+export type AgentInputTag = (AgentInputItem & { color?: string }) & (
+  | { type?: 'tag' }
+  | { type: 'input' }
+  | { type: 'select'; options: AgentInputTagOption[] }
+)
 
 export type AgentInputContent = Array<string | AgentInputTag>
 export type AgentInputTheme = 'light' | 'dark'

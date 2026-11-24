@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import type { AgentInputTag } from '../src'
 
-interface SuggestionItem extends AgentInputTag {
+type SuggestionItem = AgentInputTag & {
   disabled?: boolean
 }
 

@@ -1,3 +1,9 @@
+@supports not (float: inline-start) {
+  // Inherit the closest explicit writing direction in browsers with physical floats.
+  :where([dir='ltr' i]) { --agent-input-float-start: left; }
+  :where([dir='rtl' i]) { --agent-input-float-start: right; }
+}
+
 .agent-input {
   --agent-input-surface: #fff;
   --agent-input-text: #171717;
@@ -52,7 +58,6 @@
   &__editor {
     min-block-size: calc(var(--agent-input-line-height) * var(--agent-input-min-rows));
     overflow-wrap: anywhere;
-    white-space: pre-wrap;
     white-space: break-spaces;
     outline: none;
     font-size: 1rem;
@@ -113,13 +118,17 @@
   }
 
   &__agent {
-    float: inline-start;
+    float: var(--agent-input-float-start, left);
     max-inline-size: 55%;
     block-size: var(--agent-input-line-height);
     margin-inline-end: .375rem;
     background: var(--agent-input-tag-background);
     color: var(--agent-input-agent-color);
     font-size: .875rem;
+
+    @supports (float: inline-start) {
+      --agent-input-float-start: inline-start;
+    }
   }
 
   &__tag-label, &__agent-label {
@@ -193,9 +202,13 @@
   &__suggestion {
     box-sizing: border-box;
     min-inline-size: 0;
-    max-block-size: min(16rem, 50dvh);
+    max-block-size: min(16rem, var(--agent-input-half-viewport, 50vh));
     overflow: auto;
     overscroll-behavior: contain;
     border-block-end: 1px solid var(--agent-input-border);
+
+    @supports (height: 1dvh) {
+      --agent-input-half-viewport: 50dvh;
+    }
   }
 }

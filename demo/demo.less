@@ -26,9 +26,13 @@ button { font: inherit; }
     color-scheme: dark;
   }
 
-  min-block-size: 100svh;
+  min-block-size: var(--demo-viewport-height, 100vh);
   background: var(--demo-surface);
   color: var(--demo-text);
+
+  @supports (height: 1svh) {
+    --demo-viewport-height: 100svh;
+  }
 
   &__main {
     box-sizing: border-box;
@@ -40,7 +44,7 @@ button { font: inherit; }
   &__heading {
     display: flex;
     flex-wrap: wrap;
-    align-items: start;
+    align-items: flex-start;
     justify-content: space-between;
     gap: .75rem;
 

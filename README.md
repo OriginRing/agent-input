@@ -10,6 +10,8 @@
 
 需要 Vue 3.5 或更新的 Vue 3 版本。包以 ESM 发布，附带 TypeScript 声明和编译好的 CSS。
 
+浏览器最低支持 Chrome 90。
+
 ```sh
 npm install vue-agent-input
 ```
@@ -138,7 +140,7 @@ const draft: AgentInputContent = [
 | --- | --- |
 | `header` | 位于正文上方，可放工具栏或已选连接器。 |
 | `footer` | 填满发送按钮左侧的可用宽度，两者相隔 `0.5rem`。 |
-| `suggestion` | 位于组件内部的 `header` 上方。接收 `{ trigger, query, setAgent, insertTag, close }`，类型为 `AgentInputSuggestion`。最大高度为 `min(16rem, 50dvh)`，超出时在面板内滚动。 |
+| `suggestion` | 位于组件内部的 `header` 上方。接收 `{ trigger, query, setAgent, insertTag, close }`，类型为 `AgentInputSuggestion`。最大高度为 `16rem` 和半个视口高度中的较小值，超出时在面板内滚动。 |
 
 ### 实例方法
 

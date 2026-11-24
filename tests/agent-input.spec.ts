@@ -222,14 +222,16 @@ test('stacks mention groups in a scrollable panel and manages connector chips', 
   const connectors = suggestions.getByRole('group', { name: '连接器' })
   expect((await add.boundingBox())!.y).toBeLessThan((await agents.boundingBox())!.y)
   expect((await agents.boundingBox())!.y).toBeLessThan((await connectors.boundingBox())!.y)
-  await expect(add.getByRole('button', { name: '上传文件', exact: true })).toBeDisabled()
-  await expect(add.getByRole('button', { name: '上传文件夹', exact: true })).toBeDisabled()
+  await expect(add.getByRole('button', { name: '上传文件', exact: true })).toBeEnabled()
+  await expect(add.getByRole('button', { name: '上传文件夹', exact: true })).toBeEnabled()
   await expect(agents.getByRole('button', { name: '研究助手' })).toBeVisible()
   const size = await suggestions.evaluate(element => ({ height: element.clientHeight, content: element.scrollHeight }))
   expect(size.height).toBeLessThanOrEqual(256)
   expect(size.content).toBeGreaterThan(size.height)
 
-  await editor.press('ArrowUp')
+  await editor.press('ArrowDown')
+  await editor.press('ArrowDown')
+  await editor.press('ArrowDown')
   await expect.poll(() => suggestions.evaluate(element => element.scrollTop)).toBeGreaterThan(0)
   await connectors.getByRole('button', { name: /GitHub/i }).click()
   await expect(selected.getByRole('listitem')).toHaveCount(1)
@@ -254,6 +256,29 @@ test('stacks mention groups in a scrollable panel and manages connector chips', 
   await expect(tags(page)).toHaveCount(0)
   await editor.press('Enter')
   await expectPayload(page, { text: 'note', content: ['note'], agent: { value: 'general' } })
+})
+
+test('opens native file and directory pickers and logs selected File objects', async ({ page }) => {
+  async function chooseFiles(label: string, path: string) {
+    await button(page, '打开 @ 候选').click()
+    const [chooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      panel(page).getByRole('button', { name: label, exact: true }).click(),
+    ])
+    await expect(panel(page)).toHaveCount(0)
+
+    const logged = page.waitForEvent('console', {
+      predicate: async message => message.type() === 'log' &&
+        await message.args()[0]?.evaluate((value: unknown) => value instanceof File && value.name === 'App.vue'),
+    })
+    await chooser.setFiles(path)
+    return (await logged).args()[0].evaluate((file: File) => file.webkitRelativePath)
+  }
+
+  expect(await chooseFiles('上传文件', 'demo/App.vue')).toBe('')
+  expect(await chooseFiles('上传文件', 'demo/App.vue')).toBe('')
+  expect(await chooseFiles('上传文件夹', 'demo')).toBe('demo/App.vue')
+  expect(await chooseFiles('上传文件', 'demo/App.vue')).toBe('')
 })
 
 test('dismisses the panel without discarding typed text or sending', async ({ page }) => {

@@ -28,7 +28,9 @@ const selectable = computed(() => filteredGroups.value.flatMap(group => group.it
   .filter(item => !item.disabled)
   .map(item => ({ group: group.id, item }))))
 
-watch(() => props.query, () => { active.value = 0 })
+watch(selectable, items => {
+  active.value = Math.max(0, items.findIndex(({ group }) => group !== 'add'))
+}, { immediate: true })
 
 function handleKeydown(event: KeyboardEvent) {
   const count = selectable.value.length
@@ -67,7 +69,7 @@ defineExpose({ handleKeydown })
               </svg>
               {{ item.label }}
             </span>
-            <small v-if="!item.disabled">{{ item.value }}</small>
+            <small v-if="group.id !== 'add' && !item.disabled">{{ item.value }}</small>
           </button>
         </li>
       </ul>

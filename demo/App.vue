@@ -25,8 +25,8 @@ const connectors: AgentInputItem[] = [
 const mentionGroups = [
   {
     id: 'add', label: '添加', items: [
-      { label: '上传文件', value: 'file', disabled: true },
-      { label: '上传文件夹', value: 'folder', disabled: true },
+      { label: '上传文件', value: 'file' },
+      { label: '上传文件夹', value: 'folder' },
     ],
   },
   { id: 'agent', label: '智能体', items: agents },
@@ -36,6 +36,7 @@ const tagGroups = [{ id: 'tag', label: '插入正文标签', items: tags }]
 
 const composer = ref<AgentInputExpose | null>(null)
 const menu = ref<InstanceType<typeof SuggestionMenu> | null>(null)
+const filePicker = ref<HTMLInputElement | null>(null)
 const theme = ref<AgentInputTheme>('light')
 const content = ref<AgentInputContent>([])
 const agent = ref<AgentInputItem | null>(agents[0])
@@ -47,7 +48,15 @@ const sendCount = ref(0)
 const stopCount = ref(0)
 
 function handleSuggestion(item: AgentInputTag, group: string, suggestion: AgentInputSuggestion) {
-  if (group === 'agent') {
+  if (group === 'add') {
+    const picker = filePicker.value
+    if (!picker) return
+    const isFolder = item.value === 'folder'
+    picker.webkitdirectory = isFolder
+    picker.multiple = isFolder
+    suggestion.close({ clearTrigger: true })
+    picker.click()
+  } else if (group === 'agent') {
     suggestion.setAgent(item)
   } else if (group === 'tag') {
     suggestion.insertTag(item)
@@ -57,6 +66,12 @@ function handleSuggestion(item: AgentInputTag, group: string, suggestion: AgentI
     }
     suggestion.close({ clearTrigger: true })
   }
+}
+
+function handleFileSelection(event: Event) {
+  const input = event.currentTarget as HTMLInputElement
+  for (const file of input.files ?? []) console.log(file)
+  input.value = ''
 }
 
 function removeConnector(value: string) {
@@ -105,6 +120,7 @@ function handleStop() {
       </header>
 
       <div class="demo__stage">
+        <input ref="filePicker" type="file" hidden @change="handleFileSelection">
         <AgentInput
           ref="composer"
           v-model="content"

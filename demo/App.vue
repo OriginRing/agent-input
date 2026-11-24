@@ -10,7 +10,7 @@ const agents: AgentInputItem[] = [
   { label: '代码助手', value: 'coding' },
 ]
 
-const tags: AgentInputTag[] = [
+const skills: AgentInputTag[] = [
   { label: '季度报告', value: 'report.pdf', color: 'var(--demo-report-label)' },
   { label: '参考链接', value: 'reference.url' },
   { label: '选中内容', value: 'selection' },
@@ -32,7 +32,7 @@ const mentionGroups = [
   { id: 'agent', label: '智能体', items: agents },
   { id: 'connector', label: '连接器', items: connectors },
 ]
-const tagGroups = [{ id: 'tag', label: '插入正文标签', items: tags }]
+const tagGroups = [{ id: 'skill', label: '技能', items: skills }]
 
 const composer = ref<AgentInputExpose | null>(null)
 const menu = ref<InstanceType<typeof SuggestionMenu> | null>(null)
@@ -58,7 +58,7 @@ function handleSuggestion(item: AgentInputTag, group: string, suggestion: AgentI
     picker.click()
   } else if (group === 'agent') {
     suggestion.setAgent(item)
-  } else if (group === 'tag') {
+  } else if (group === 'skill') {
     suggestion.insertTag(item)
   } else if (group === 'connector') {
     if (!selectedConnectors.value.some(connector => connector.value === item.value)) {
@@ -80,7 +80,7 @@ function removeConnector(value: string) {
 }
 
 function fillExample() {
-  content.value = ['请读一下', tags[0], '，再打开', tags[1], '。']
+  content.value = ['请读一下', skills[0], '，再打开', skills[1], '。']
 }
 
 async function clearDraft() {
@@ -160,7 +160,7 @@ function handleStop() {
           </template>
           <template #footer>
             <div class="demo__tools">
-              <button type="button" class="demo__button" @click="composer?.insertTag(tags[0])">插入报告标签</button>
+              <button type="button" class="demo__button" @click="composer?.insertTag(skills[0])">插入报告技能</button>
               <span class="demo__shortcut"><kbd>Shift</kbd> + <kbd>Enter</kbd> 换行</span>
             </div>
           </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { nextTick, ref, shallowRef } from 'vue'
+import { computed, nextTick, ref, shallowRef } from 'vue'
 import { AgentInput } from '../src'
-import type { AgentInputContent, AgentInputExpose, AgentInputItem, AgentInputSendPayload, AgentInputSuggestion, AgentInputTag, AgentInputTheme } from '../src'
+import type { AgentInputContent, AgentInputExpose, AgentInputItem, AgentInputSendPayload, AgentInputSuggestion, AgentInputTag, AgentInputTheme, AgentInputTrigger } from '../src'
 import SuggestionMenu from './SuggestionMenu.vue'
 
 const agents: AgentInputItem[] = [
@@ -55,8 +55,14 @@ const slashGroups = [
   { id: 'tag', label: '标签', items: inlineTags },
 ]
 
+type FooterSuggestionGroup = 'agent' | 'connector'
+
 const composer = ref<AgentInputExpose | null>(null)
 const menu = ref<InstanceType<typeof SuggestionMenu> | null>(null)
+const footerGroup = ref<FooterSuggestionGroup | null>(null)
+const visibleMentionGroups = computed(() => footerGroup.value
+  ? mentionGroups.filter(group => group.id === footerGroup.value)
+  : mentionGroups)
 const filePicker = ref<HTMLInputElement | null>(null)
 const theme = ref<AgentInputTheme>('light')
 const content = ref<AgentInputContent>([])
@@ -67,6 +73,17 @@ const lastSend = shallowRef<AgentInputSendPayload | null>(null)
 const lastTagClick = shallowRef<AgentInputTag | null>(null)
 const sendCount = ref(0)
 const stopCount = ref(0)
+
+function openSuggestion(trigger: AgentInputTrigger, group: FooterSuggestionGroup | null = null) {
+  footerGroup.value = group
+  composer.value?.openSuggestion(trigger)
+}
+
+function handleDraftTrigger(event: InputEvent | CompositionEvent) {
+  if (!footerGroup.value || !(event.target instanceof HTMLElement) || !event.target.isContentEditable) return
+  if (event instanceof InputEvent && (event.isComposing || event.inputType !== 'insertText')) return
+  if (/[@/]/u.test(event.data ?? '')) footerGroup.value = null
+}
 
 function handleSuggestion(item: AgentInputTag, group: string, suggestion: AgentInputSuggestion) {
   if (group === 'add') {
@@ -146,8 +163,8 @@ function handleStop() {
           <p>输入 <kbd>@</kbd> 查看智能体和连接器，输入 <kbd>/</kbd> 插入技能、可编辑标签或下拉标签。</p>
         </div>
         <div class="demo__tools">
-          <button class="demo__button" type="button" @click="composer?.openSuggestion('@')">打开 @ 候选</button>
-          <button class="demo__button" type="button" @click="composer?.openSuggestion('/')">打开 / 候选</button>
+          <button class="demo__button" type="button" @click="openSuggestion('@')">打开 @ 候选</button>
+          <button class="demo__button" type="button" @click="openSuggestion('/')">打开 / 候选</button>
           <button class="demo__button" type="button" @click="theme = theme === 'light' ? 'dark' : 'light'">
             {{ theme === 'light' ? '深色主题' : '浅色主题' }}
           </button>
@@ -169,6 +186,9 @@ function handleStop() {
           @stop="handleStop"
           @tag-click="lastTagClick = $event"
           @suggestion-keydown="menu?.handleKeydown($event)"
+          @beforeinput.capture="handleDraftTrigger"
+          @input.capture="handleDraftTrigger"
+          @compositionend.capture="handleDraftTrigger"
         >
           <template #header>
             <div class="demo__tools">
@@ -188,13 +208,15 @@ function handleStop() {
             <SuggestionMenu
               :key="suggestion.trigger"
               ref="menu"
-              :groups="suggestion.trigger === '@' ? mentionGroups : slashGroups"
+              :groups="suggestion.trigger === '@' ? visibleMentionGroups : slashGroups"
               :query="suggestion.query"
               @select="(item, group) => handleSuggestion(item, group, suggestion)"
             />
           </template>
           <template #footer>
             <div class="demo__tools">
+              <button type="button" class="demo__button" @click="openSuggestion('@', 'agent')">智能体</button>
+              <button type="button" class="demo__button" @click="openSuggestion('@', 'connector')">连接器</button>
               <button type="button" class="demo__button" @click="composer?.insertTag(skills[0])">插入报告技能</button>
               <span class="demo__shortcut"><kbd>Shift</kbd> + <kbd>Enter</kbd> 换行</span>
             </div>

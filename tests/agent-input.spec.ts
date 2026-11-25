@@ -213,6 +213,43 @@ test('opens suggestions from external buttons without inserting trigger characte
   await expectPayload(page, { text: 'ab report.pdf cd', content: ['ab', report, 'cd'], agent: { value: 'research' } })
 })
 
+test('opens only the requested suggestion group from each footer button', async ({ page }) => {
+  const editor = textbox(page)
+  const footer = page.locator('.agent-input__footer')
+  const suggestions = panel(page)
+  const groups = suggestions.getByRole('group')
+  const agentButton = footer.getByRole('button', { name: '智能体', exact: true })
+  const connectorButton = footer.getByRole('button', { name: '连接器', exact: true })
+  await editor.pressSequentially('draft')
+
+  await agentButton.click()
+  await expect(groups).toHaveCount(1)
+  await expect(groups.first()).toHaveAccessibleName('智能体')
+  await expect(editor).toBeFocused()
+  await connectorButton.click()
+  await expect(groups).toHaveCount(1)
+  await expect(groups.first()).toHaveAccessibleName('连接器')
+
+  await agentButton.click()
+  await suggestions.getByRole('button', { name: '研究助手 research' }).click()
+  await expect(page.getByText('@研究助手')).toBeVisible()
+  await expect(suggestions).toHaveCount(0)
+  await connectorButton.click()
+  await editor.pressSequentially('notion')
+  await expect(suggestions.getByRole('button')).toHaveCount(1)
+  await editor.press('Enter')
+  await expect(page.getByRole('list', { name: '已选连接器' }).getByText('Notion')).toBeVisible()
+  await expect(editor).toHaveText('draft')
+
+  await connectorButton.click()
+  await editor.pressSequentially('@')
+  await expect(groups).toHaveCount(3)
+  await editor.press('Escape')
+  await editor.press('Backspace')
+  await editor.press('Enter')
+  await expectPayload(page, { text: 'draft', content: ['draft'], agent: { value: 'research' } })
+})
+
 test('stacks mention groups in a scrollable panel and manages connector chips', async ({ page }) => {
   const editor = textbox(page)
   const suggestions = panel(page)

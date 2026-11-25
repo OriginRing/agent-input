@@ -22,6 +22,8 @@ const props = withDefaults(defineProps<AgentInputProps>(), {
   placeholder: '输入消息',
   ariaLabel: '消息正文',
   loading: false,
+  enableAtTrigger: true,
+  enableSlashTrigger: true,
 })
 
 const emit = defineEmits<{
@@ -111,10 +113,19 @@ function closeSuggestion() {
   suggestion.value = null
 }
 
+function isTriggerEnabled(trigger: AgentInputTrigger) {
+  return trigger === '@' ? props.enableAtTrigger : props.enableSlashTrigger
+}
+
+watch([() => props.enableAtTrigger, () => props.enableSlashTrigger], () => {
+  const active = suggestion.value
+  if (active && !isTriggerEnabled(active.trigger)) closeSuggestion()
+})
+
 function openSuggestion(trigger: AgentInputTrigger) {
   const element = editor.value
   const scroller = scrollArea.value
-  if (!slots.suggestion || !element || !scroller || !snapshot || isComposing.value) return
+  if (!isTriggerEnabled(trigger) || !slots.suggestion || !element || !scroller || !snapshot || isComposing.value) return
 
   finishTagEdit(true)
   closeTagSelect()
@@ -139,6 +150,10 @@ function updateSuggestion(selection: DraftSelection | null, insertedText?: strin
   const start = triggerIndex === -1 ? previous?.start : end - text.length + triggerIndex
   const trigger = triggerIndex === -1 ? previous?.trigger : text[triggerIndex] as AgentInputTrigger
   if (start === undefined || trigger === undefined) return
+  if (!isTriggerEnabled(trigger)) {
+    closeSuggestion()
+    return
+  }
   const hasTriggerText = triggerIndex !== -1 || previous?.hasTriggerText === true
 
   if (!hasTriggerText && insertedText === undefined && end !== previous?.end) {

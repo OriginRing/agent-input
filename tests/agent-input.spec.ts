@@ -213,6 +213,38 @@ test('opens suggestions from external buttons without inserting trigger characte
   await expectPayload(page, { text: 'ab report.pdf cd', content: ['ab', report, 'cd'], agent: { value: 'research' } })
 })
 
+test('can disable each suggestion trigger and keep the characters as plain text', async ({ page }) => {
+  const editor = textbox(page)
+  const at = page.getByRole('checkbox', { name: '启用 @ 候选' })
+  const slash = page.getByRole('checkbox', { name: '启用 / 候选' })
+  await expect(at).toBeChecked()
+  await expect(slash).toBeChecked()
+
+  await at.uncheck()
+  const openAt = button(page, '打开 @ 候选')
+  await expect(openAt).toBeDisabled()
+  // A synthetic click calls the ref method even when the native button is disabled.
+  await openAt.dispatchEvent('click')
+  await expect(panel(page)).toHaveCount(0)
+  await editor.pressSequentially('name@domain')
+  await expect(panel(page)).toHaveCount(0)
+  await editor.pressSequentially('/')
+  await expect(panel(page).getByRole('group', { name: '技能' })).toBeVisible()
+  await slash.evaluate((checkbox: HTMLInputElement) => checkbox.click())
+  await expect(panel(page)).toHaveCount(0)
+  await expect(editor).toBeFocused()
+
+  await at.evaluate((checkbox: HTMLInputElement) => checkbox.click())
+  await editor.pressSequentially('path/')
+  await expect(panel(page)).toHaveCount(0)
+  await editor.pressSequentially('@')
+  await expect(panel(page).getByRole('group', { name: '智能体' })).toBeVisible()
+  await editor.pressSequentially('/tail')
+  await expect(panel(page)).toHaveCount(0)
+  await editor.press('Enter')
+  await expectPayload(page, { text: 'name@domain/path/@/tail', content: ['name@domain/path/@/tail'] })
+})
+
 test('opens only the requested suggestion group from each footer button', async ({ page }) => {
   const editor = textbox(page)
   const footer = page.locator('.agent-input__footer')

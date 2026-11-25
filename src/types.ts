@@ -28,6 +28,8 @@ export interface AgentInputProps {
   placeholder?: string
   ariaLabel?: string
   loading?: boolean
+  enableAtTrigger?: boolean
+  enableSlashTrigger?: boolean
 }
 
 export interface AgentInputSendPayload {

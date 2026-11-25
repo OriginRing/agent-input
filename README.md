@@ -44,6 +44,8 @@ function handleSend({ text }: AgentInputSendPayload) {
 
 提供 `#suggestion` 插槽后，输入 `@` 或 `/` 会在组件内展开候选。插槽提供触发符和查询词，候选数据与筛选逻辑由调用方提供。下面的示例用 `@` 选择智能体，用 `/` 在光标处插入正文标签。
 
+可通过 `:enable-at-trigger="false"` 或 `:enable-slash-trigger="false"` 单独关闭触发。关闭后对应符号按普通文本输入，调用 `openSuggestion` 也不会打开该候选面板。
+
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue'
@@ -159,6 +161,8 @@ const draft: AgentInputContent = [
 | `placeholder` | `string` | `'输入消息'` | 正文为空时显示的提示。 |
 | `ariaLabel` | `string` | `'消息正文'` | 编辑区的无障碍名称。 |
 | `loading` | `boolean` | `false` | 将发送按钮切换为停止按钮。 |
+| `enableAtTrigger` | `boolean` | `true` | 控制 `@` 候选是否开启。 |
+| `enableSlashTrigger` | `boolean` | `true` | 控制 `/` 候选是否开启。 |
 
 ### 事件
 

@@ -69,6 +69,8 @@ const content = ref<AgentInputContent>([])
 const agent = ref<AgentInputItem | null>(agents[0])
 const selectedConnectors = ref<AgentInputItem[]>([])
 const loading = ref(false)
+const enableAtTrigger = ref(true)
+const enableSlashTrigger = ref(true)
 const lastSend = shallowRef<AgentInputSendPayload | null>(null)
 const lastTagClick = shallowRef<AgentInputTag | null>(null)
 const sendCount = ref(0)
@@ -163,11 +165,13 @@ function handleStop() {
           <p>输入 <kbd>@</kbd> 查看智能体和连接器，输入 <kbd>/</kbd> 插入技能、可编辑标签或下拉标签。</p>
         </div>
         <div class="demo__tools">
-          <button class="demo__button" type="button" @click="openSuggestion('@')">打开 @ 候选</button>
-          <button class="demo__button" type="button" @click="openSuggestion('/')">打开 / 候选</button>
+          <button class="demo__button" type="button" :disabled="!enableAtTrigger" @click="openSuggestion('@')">打开 @ 候选</button>
+          <button class="demo__button" type="button" :disabled="!enableSlashTrigger" @click="openSuggestion('/')">打开 / 候选</button>
           <button class="demo__button" type="button" @click="theme = theme === 'light' ? 'dark' : 'light'">
             {{ theme === 'light' ? '深色主题' : '浅色主题' }}
           </button>
+          <label><input v-model="enableAtTrigger" type="checkbox"> 启用 @ 候选</label>
+          <label><input v-model="enableSlashTrigger" type="checkbox"> 启用 / 候选</label>
         </div>
       </header>
 
@@ -179,6 +183,8 @@ function handleStop() {
           v-model:agent="agent"
           :theme="theme"
           :loading="loading"
+          :enable-at-trigger="enableAtTrigger"
+          :enable-slash-trigger="enableSlashTrigger"
           :min-rows="2"
           :max-rows="5"
           placeholder="输入消息…"
@@ -215,8 +221,8 @@ function handleStop() {
           </template>
           <template #footer>
             <div class="demo__tools">
-              <button type="button" class="demo__button" @click="openSuggestion('@', 'agent')">智能体</button>
-              <button type="button" class="demo__button" @click="openSuggestion('@', 'connector')">连接器</button>
+              <button type="button" class="demo__button" :disabled="!enableAtTrigger" @click="openSuggestion('@', 'agent')">智能体</button>
+              <button type="button" class="demo__button" :disabled="!enableAtTrigger" @click="openSuggestion('@', 'connector')">连接器</button>
               <button type="button" class="demo__button" @click="composer?.insertTag(skills[0])">插入报告技能</button>
               <span class="demo__shortcut"><kbd>Shift</kbd> + <kbd>Enter</kbd> 换行</span>
             </div>
